@@ -268,3 +268,16 @@ Back to Library and Quit confirmations work and return to the normal muOS
 frontend. The game creates persistent save data in the normal save directory.
 These are application-visible physical-controller-path results; they do not
 replace physical Mini controls or a complete collection gameplay pass.
+
+### SP session performance governor
+
+The SP launcher requests the stock `performance` governor for its own session
+and restores the exact inherited governor through an EXIT trap. It also owns
+and waits for its runtime child, terminating only that child on interruption.
+A normal Ports Vainger replay verifies `ondemand -> performance -> ondemand`,
+with every sampled CPU frequency at the existing stock 1,512,000 kHz limit.
+No frequency limits are changed. The later 28.264-second sampled interval
+averages 28.765 FPS / 57.564 simulation Hz; some intervals reach 30 FPS, but
+the requested sustained target still fails. Earlier gameplay averages 28.453
+FPS. Observed peak VmHWM is 111,104 KiB. The SP loads a sizeable SDL compatibility
+and GPU stack, so its total RSS does not establish the physical Mini's headroom.
