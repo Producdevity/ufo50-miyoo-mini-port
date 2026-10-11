@@ -1,6 +1,6 @@
 # Development status
 
-Updated 2026-10-11. The public source is on `master`; packages contain ARM32
+Updated 2026-10-12. The public source is on `master`; packages contain ARM32
 runtimes and their exact source, with game assets excluded.
 
 The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
@@ -8,7 +8,13 @@ movement, jumping, attacking, pause, returning to the library, normal quit and
 persistent save reload. Digital audio reaches the codec sink. The measured
 Barbuta interval presents 29.996 FPS over 123 seconds; Cyber Owls presents
 29.980 FPS over 20 seconds. Vainger with ThinLTO and preserved Draw events
-averages 29.489 and 29.539 FPS in two sampled gameplay intervals.
+averages 29.489 and 29.539 FPS in two sampled gameplay intervals. With the
+native logical SP display, Golfaria averages 29.786 FPS (59.589 logic steps/s)
+over 58.517 seconds of gameplay, with 1.543 ms spent presenting each image.
+Loading and the final state export are excluded. This is close to the requested
+30 FPS but does not establish a locked rate in every scene. A 4.923-second codec
+sink capture contains nonzero stereo S16 audio at 44.1 kHz. The framebuffer
+capture confirms the game image and aspect-preserving bars on the SP panel.
 
 All 50 seeded host room paths complete with the real offline audio mixer.
 Their complete recorded states match the 60 FPS baseline exactly. Draw events

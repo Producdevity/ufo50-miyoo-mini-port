@@ -1,11 +1,12 @@
 # UFO 50 for Miyoo Mini
 
-UFO 50 running through a native ARM32 interpreter on Miyoo Mini and Mini Plus
-with Onion. You need your own Windows copy of the game.
+A native port for Miyoo Mini and Mini Plus running Onion. You need your own
+Windows copy of UFO 50.
 
-This is a development build. On the muOS SP, gameplay controls, audio, save
-reload and quitting work. Tested scenes run around 30 FPS; Vainger averages
-29.5 FPS. Mini hardware performance has not been measured yet.
+This is a development build. Controls, audio, saving, loading and quitting have
+been tested on a muOS SP. Measured gameplay is close to 30 FPS: Golfaria averages
+29.8 FPS and Vainger 29.5 FPS. Display, sound and performance still need to be
+tested on a physical Mini.
 
 ## Install
 
@@ -14,8 +15,9 @@ reload and quitting work. Tested scenes run around 30 FPS; Vainger averages
 3. Open your Windows UFO 50 installation folder. In Steam, right-click the game
    and choose **Manage → Browse local files**.
 4. Copy the contents of the Windows game folder into
-   `Roms/PORTS/Games/UFO50/gamefiles` on the SD card. Keep the audio groups, texture files, fonts
-   and language folders together. The Windows executable is not needed.
+   `Roms/PORTS/Games/UFO50/gamefiles` on the SD card. Keep the audio groups,
+   texture files, fonts and language folders together. The Windows executable
+   is not needed.
 5. Run **~Import ports** in Onion's Ports collection, then open **Action → UFO50**.
 
 The file layout should look like this:
