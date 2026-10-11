@@ -16,6 +16,7 @@ from package import build_record
 GAME = 'Roms/PORTS/Games/UFO50'
 SHORTCUT = 'Roms/PORTS/Shortcuts/Action/UFO50'
 SAVE = 'Saves/CurrentProfile/saves/UFO50'
+CACHE = 'Roms/PORTS/Shortcuts/Shortcuts_cache6.db'
 METADATA = {'.DS_Store', 'Thumbs.db'}
 
 
@@ -119,7 +120,7 @@ def deploy(sd, package, gamefiles, backup_root):
             unpacked = Path(temporary)
             record = unpack_package(package, unpacked)
             with tarfile.open(backup / 'previous.tar.gz', 'w:gz') as archive:
-                for relative in [GAME, SAVE, SHORTCUT + '.port', SHORTCUT + '.notfound']:
+                for relative in [GAME, SAVE, SHORTCUT + '.port', SHORTCUT + '.notfound', CACHE]:
                     path = sd / relative
                     if path.exists():
                         archive.add(path, arcname=relative)
@@ -161,6 +162,10 @@ def deploy(sd, package, gamefiles, backup_root):
                 raise ValueError('Installed assets or preserved saves differ')
             if sha256(shortcut) != sha256(unpacked / (SHORTCUT + '.notfound')):
                 raise ValueError('Installed shortcut differs from the package')
+            # Onion rebuilds this generated list so the new entry appears immediately.
+            cache = sd / CACHE
+            if cache.exists():
+                cache.unlink()
             (backup / 'deployment.json').write_text(json.dumps(dict(
                 source=record['source'], runtime_sha256=record['runtime_sha256'],
                 gamefiles=len(asset_before), preserved_save_files=len(save_before),
@@ -179,7 +184,7 @@ def deploy(sd, package, gamefiles, backup_root):
                     shortcut.unlink()
             with tarfile.open(backup / 'previous.tar.gz') as archive:
                 for member in archive.getmembers():
-                    if member.name in [SHORTCUT + '.port', SHORTCUT + '.notfound']:
+                    if member.name in [SHORTCUT + '.port', SHORTCUT + '.notfound', CACHE]:
                         archive.extract(member, sd, filter='data')
         raise
     finally:

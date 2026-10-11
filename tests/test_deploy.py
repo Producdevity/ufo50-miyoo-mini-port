@@ -30,6 +30,7 @@ class Deployment(unittest.TestCase):
         (self.target / 'old-runtime').write_bytes(b'old')
         (self.saves / 'save1.ufo').write_bytes(b'keep this save')
         (self.sd / (deploy.SHORTCUT + '.notfound')).write_bytes(b'old shortcut')
+        (self.sd / deploy.CACHE).write_bytes(b'old list cache')
         self.save_before = deploy.manifest(self.saves)
         self.asset_before = deploy.manifest(self.target / 'gamefiles')
 
@@ -56,7 +57,9 @@ class Deployment(unittest.TestCase):
         self.assertEqual(deploy.manifest(self.target / 'gamefiles'), self.asset_before)
         self.assertEqual((self.target / 'bin/butterscotch').read_bytes(), b'new runtime')
         self.assertTrue((self.sd / (deploy.SHORTCUT + '.port')).is_file())
+        self.assertFalse((self.sd / deploy.CACHE).exists())
         with tarfile.open(backup / 'previous.tar.gz') as archive:
+            self.assertEqual(archive.extractfile(deploy.CACHE).read(), b'old list cache')
             self.assertEqual(archive.extractfile(deploy.SAVE + '/save1.ufo').read(), b'keep this save')
             self.assertEqual(archive.extractfile(deploy.GAME + '/old-runtime').read(), b'old')
 
@@ -78,6 +81,7 @@ class Deployment(unittest.TestCase):
         self.assertEqual((self.target / 'old-runtime').read_bytes(), b'old')
         self.assertEqual((self.sd / (deploy.SHORTCUT + '.notfound')).read_bytes(), b'old shortcut')
         self.assertFalse((self.sd / (deploy.SHORTCUT + '.port')).exists())
+        self.assertEqual((self.sd / deploy.CACHE).read_bytes(), b'old list cache')
         self.assertEqual(deploy.manifest(self.saves), self.save_before)
         self.assertEqual(deploy.manifest(self.target / 'gamefiles'), self.asset_before)
 

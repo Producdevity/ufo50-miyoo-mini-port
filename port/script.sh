@@ -59,7 +59,10 @@ export UFO50_PLATFORM=miyoo
 export UFO50_RENDER_FPS=30
 export UFO50_TEXTURE_CACHE_MIB="${UFO50_TEXTURE_CACHE_MIB:-24}"
 export UFO50_NATIVE_RESOLUTION=384x216
-export UFO50_PERF_LOG="${UFO50_PERF_LOG:-0}"
+export UFO50_PERF_LOG="${UFO50_PERF_LOG:-1}"
+printf 'Platform: %s\n' "$(uname -m)"
+head -n 8 /proc/meminfo 2>/dev/null || true
+cat /proc/swaps 2>/dev/null || true
 cd "$gamedir/gamefiles"
 "$gamedir/bin/butterscotch" data.win --renderer software \
   --lazy-rooms --lazy-textures --lazy-audio --load-type load-per-chunk \

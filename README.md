@@ -27,7 +27,7 @@ SD card/
     bin/butterscotch
     gamefiles/
       data.win
-      audiogroup1.dat
+      audiogroup_sfx.dat
       ...the remaining game assets and folders...
 ```
 

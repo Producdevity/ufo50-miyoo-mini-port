@@ -403,3 +403,12 @@ in controller-presence fields (`joySlot`, `joyConnected`, and `padCount`),
 as expected when the probe stops exposing the SP joystick; gameplay fields match. Native compatibility and Mini key-mapping selftests
 pass. All 36 referenced SDL symbols are exported by the mounted card's SDL.
 This isolates the ABI/logic probe; it does not simulate the Mini's device timing.
+
+### Mini first-run diagnostics and menu refresh
+
+Development launches record memory/swap at startup and presented frame counts
+in the private save-log directory. `UFO50_PERF_LOG=0` disables timing output.
+The SD installer backs up Onion's generated Ports list cache and removes it only
+after file verification, allowing the new `.port` entry to be discovered.
+Rollback restores the cache along with the original shortcut and installation.
+The existing Onion startup/swap configuration is left intact.
