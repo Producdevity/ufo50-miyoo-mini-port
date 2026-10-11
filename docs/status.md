@@ -181,3 +181,15 @@ original texture pages. Renderer teardown now frees textures, surfaces,
 framebuffer and metadata, including teardown while drawing to a surface.
 Host, SP ARM32 and ASan/UBSan regressions pass. Vainger, Mini & Max, Seaside
 Drive and Cyber Owls complete their post-change room probes.
+
+### muOS Ports integration
+
+The development runtime launches from `/mnt/sdcard/ROMS/Ports/UFO50.sh`
+through the installed muOS content loader, which selects ARM32 SDL/audio via
+`PORT_32BIT=Y`. The frontend then invokes the dedicated launcher in
+`/mnt/mmc/.ufo50-dev`; no launch-state files are synthesized. The visible Ports
+selection and runtime parent process were captured in the private evidence.
+Normal launches use persistent dedicated saves. Explicit bounded benchmarks
+use separate saves and optional recorded keyboard input. Deployment uploads
+staged files, verifies the binary SHA256, and refuses to replace a running
+runtime. The obsolete Applications diagnostic entry is removed.
