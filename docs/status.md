@@ -398,7 +398,8 @@ Explicit headless SDL1 mode no longer opens joysticks or polls physical input.
 Recorded inputs still feed the runner directly; interactive input is unchanged.
 On the SP with Mini SDK SDL, the first two 6,000-step real-mixer paths now
 complete in 27.2 and 17.7 seconds, compared with roughly 100 seconds when SDL
-polled the SP's input devices. Their complete state snapshots and PCM counts
-match the earlier runs. Native compatibility and Mini key-mapping selftests
+polled the SP's input devices. PCM counts match the earlier runs. The first state comparison differs only
+in controller-presence fields (`joySlot`, `joyConnected`, and `padCount`),
+as expected when the probe stops exposing the SP joystick; gameplay fields match. Native compatibility and Mini key-mapping selftests
 pass. All 36 referenced SDL symbols are exported by the mounted card's SDL.
 This isolates the ABI/logic probe; it does not simulate the Mini's device timing.
