@@ -105,6 +105,33 @@ int Ufo50_runCompatibilityTests(void) {
     repeat(3, i) { arrfree(objectLists[i]); arrfree(exactLists[i]); arrfree(targetLists[i]); }
     arrfree(orderRunner.instanceSnapshots);
 
+    /* Sprite metadata changes must move existing instances between grid cells. */
+    Sprite gridSprite = {.width = 128, .height = 128, .marginRight = 15, .marginBottom = 15};
+    data.sprt.count = 1; data.sprt.sprites = &gridSprite;
+    Instance* gridInstance = Instance_create(900001, 0, 128, 128);
+    gridInstance->spriteIndex = 0;
+    arrput(runner->instances, gridInstance);
+    hmput(runner->instancesById, gridInstance->instanceId, gridInstance);
+    runner->spatialGrid = SpatialGrid_create(512, 512);
+    SpatialGrid_markInstanceAsDirty(runner->spatialGrid, gridInstance);
+    SpatialGrid_syncGrid(runner, runner->spatialGrid);
+    SpatialGridRange near = SpatialGrid_computeCellRange(runner->spatialGrid, 0, 0, 16, 16);
+    CHECK_TEST(!SpatialGrid_instanceOverlapsRange(gridInstance, near));
+    RValue offsetArgs[] = {RValue_makeReal(0), RValue_makeReal(128), RValue_makeReal(128)};
+    builtin_sprite_set_offset(ctx, offsetArgs, 3);
+    SpatialGrid_syncGrid(runner, runner->spatialGrid);
+    CHECK_TEST(SpatialGrid_instanceOverlapsRange(gridInstance, near));
+    SpatialGridRange wider = SpatialGrid_computeCellRange(runner->spatialGrid, 64, 64, 80, 80);
+    CHECK_TEST(!SpatialGrid_instanceOverlapsRange(gridInstance, wider));
+    RValue bboxMode[] = {RValue_makeReal(0), RValue_makeReal(1)};
+    builtin_sprite_set_bbox_mode(ctx, bboxMode, 2);
+    SpatialGrid_syncGrid(runner, runner->spatialGrid);
+    CHECK_TEST(SpatialGrid_instanceOverlapsRange(gridInstance, wider));
+    SpatialGrid_free(runner->spatialGrid); runner->spatialGrid = nullptr;
+    hmdel(runner->instancesById, gridInstance->instanceId);
+    arrsetlen(runner->instances, 0); Instance_free(gridInstance);
+    data.sprt.count = 0; data.sprt.sprites = nullptr;
+
     /* Invalid metadata lookups must cross unloaded sparse audio groups safely. */
     Sound namedSound = {.name = "synthetic"};
     data.sond.count = 1; data.sond.sounds = &namedSound;

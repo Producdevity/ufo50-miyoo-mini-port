@@ -281,7 +281,9 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
     }
 
     // Init SDL
-    if (SDL_Init(SDL_INIT_TIMER | (headless ? 0 : SDL_INIT_JOYSTICK | SDL_INIT_VIDEO))) {
+    // Timing uses the monotonic frame clock and SDL_Delay, neither needs SDL's
+    // callback timer thread. SDL_Init starts its tick counter for any flags.
+    if (SDL_Init(headless ? 0 : SDL_INIT_JOYSTICK | SDL_INIT_VIDEO)) {
         logError("Failed to initialize SDL: %s\n", SDL_GetError());
         return false;
     }

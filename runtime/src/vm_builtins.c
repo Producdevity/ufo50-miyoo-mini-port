@@ -11196,6 +11196,15 @@ static RValue builtin_sprite_get_name(VMContext* ctx, RValue* args, MAYBE_UNUSED
 }
 
 // sprite_set_bbox_mode(sprite_index, mode)
+static void markSpriteCollisionUsersDirty(Runner* runner, int32_t spriteIndex) {
+    repeat(arrlen(runner->instances), i) {
+        Instance* inst = runner->instances[i];
+        if (!inst->active || inst->destroyed) continue;
+        int32_t activeMask = inst->maskIndex >= 0 ? inst->maskIndex : inst->spriteIndex;
+        if (activeMask == spriteIndex) SpatialGrid_markInstanceAsDirty(runner->spatialGrid, inst);
+    }
+}
+
 static RValue builtin_sprite_set_bbox_mode(VMContext* ctx, RValue* args, int32_t argCount) {
     if (argCount < 2) return RValue_makeUndefined();
 
@@ -11217,16 +11226,7 @@ static RValue builtin_sprite_set_bbox_mode(VMContext* ctx, RValue* args, int32_t
 
     spr->bboxMode = mode;
 
-    int32_t instanceCount = (int32_t)arrlen(runner->instances);
-    for (int32_t i = 0; i < instanceCount; i++) {
-        Instance* inst = runner->instances[i];
-        if (!inst->active || inst->destroyed) continue;
-
-        int32_t activeMask = (inst->maskIndex >= 0) ? inst->maskIndex : inst->spriteIndex;
-        if (activeMask == spriteIndex) {
-            SpatialGrid_markInstanceAsDirty(runner->spatialGrid, inst);
-        }
-    }
+    markSpriteCollisionUsersDirty(runner, spriteIndex);
 
     return RValue_makeUndefined();
 }
@@ -11235,8 +11235,12 @@ static RValue builtin_sprite_set_bbox_mode(VMContext* ctx, RValue* args, int32_t
 static RValue builtin_sprite_set_offset(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
     int32_t spriteIndex = (int32_t) RValue_toReal(args[0]);
     if (0 > spriteIndex || (uint32_t) spriteIndex >= ctx->dataWin->sprt.count) return RValue_makeReal(0.0);
-    ctx->dataWin->sprt.sprites[spriteIndex].originX = (int32_t) RValue_toReal(args[1]);
-    ctx->dataWin->sprt.sprites[spriteIndex].originY = (int32_t) RValue_toReal(args[2]);
+    Sprite* sprite = &ctx->dataWin->sprt.sprites[spriteIndex];
+    int32_t x = (int32_t)RValue_toReal(args[1]), y = (int32_t)RValue_toReal(args[2]);
+    if (sprite->originX != x || sprite->originY != y) {
+        sprite->originX = x; sprite->originY = y;
+        markSpriteCollisionUsersDirty(ctx->runner, spriteIndex);
+    }
     return RValue_makeReal(0.0);
 }
 
@@ -11256,6 +11260,7 @@ static RValue builtin_sprite_create_from_surface(VMContext* ctx, RValue* args, M
     int32_t yorig = RValue_toInt32(args[8]);
 
     int32_t result = runner->renderer->vtable->createSpriteFromSurface(runner->renderer, surfaceId, x, y, w, h, removeback, smooth, xorig, yorig);
+    if (result >= 0) markSpriteCollisionUsersDirty(runner, result);
     return RValue_makeReal((GMLReal) result);
 }
 
@@ -11266,6 +11271,7 @@ static RValue builtin_sprite_delete(VMContext* ctx, RValue* args, MAYBE_UNUSED i
 
     int32_t spriteIndex = RValue_toInt32(args[0]);
     runner->renderer->vtable->deleteSprite(runner->renderer, spriteIndex);
+    markSpriteCollisionUsersDirty(runner, spriteIndex);
     return RValue_makeUndefined();
 }
 

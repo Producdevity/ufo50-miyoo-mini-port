@@ -443,3 +443,24 @@ keep their own region and continue updating at the logic rate. All 50 seeded
 host states and final PNGs match the collision-cache baseline exactly.
 Sanitized compatibility tests pass, including main-frame discard and surface
 raster bounds.
+
+### Avoid the unused SDL timer thread
+
+SDL1 initialization no longer requests the callback timer subsystem. The port
+uses its monotonic frame clock and SDL_Delay; SDL initializes its tick counter
+regardless of subsystem flags ([SDL source](https://github.com/libsdl-org/SDL-1.2/blob/main/src/SDL.c)).
+The ARM32 build passes compatibility/input tests and completes the recorded
+Golfaria and Valbrace paths with real offline PCM and clean shutdown using
+the card's glibc and Mini SDK SDL, without supplying libgcc_s to that fixture.
+
+### Reject distant collision candidates through the spatial grid
+
+Collision dispatch keeps the entire sorted target snapshot but tests occupied
+grid cells before calculating candidate boxes. After a handler runs, it refreshes
+the grid and the self range, so an existing target moved into range can still
+receive its event in the original order. Sprite origin, bounding mode, creation
+and deletion changes refresh affected instances. A regression moves an existing
+instance between cells by changing its sprite origin, then expands its box.
+All 50 complete seeded host states match the previous build exactly; sanitized
+compatibility tests pass. The slower geometry-cache experiment was reverted
+after native performance testing.

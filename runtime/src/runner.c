@@ -3249,6 +3249,7 @@ static void dispatchCollisionEvents(Runner* runner) {
             InstanceBBox bboxSelf;
             Sprite* sprSelf;
             bool selfDirty = true;
+            SpatialGridRange selfRange;
 
             FlattenedCollisionEventList* eventList = &runner->flattenedCollisionEvents[self->objectIndex];
             repeat(eventList->eventCount, evtIdx) {
@@ -3273,8 +3274,15 @@ static void dispatchCollisionEvents(Runner* runner) {
                     if (selfDirty) {
                         bboxSelf = Collision_computeBBox(runner, self);
                         sprSelf = Collision_getSprite(dataWin, self);
+                        // Keep the full ordered target snapshot: handlers may move an
+                        // existing target into range before its turn. Refresh the grid
+                        // after each handler so the broad phase sees those changes.
+                        SpatialGrid_syncGrid(runner, runner->spatialGrid);
+                        selfRange = SpatialGrid_computeCellRange(runner->spatialGrid,
+                            bboxSelf.left, bboxSelf.top, bboxSelf.right, bboxSelf.bottom);
                         selfDirty = false;
                     }
+                    if (!bboxSelf.valid || !SpatialGrid_instanceOverlapsRange(other, selfRange)) continue;
                     InstanceBBox bboxOther = Collision_computeBBox(runner, other);
 
 #ifdef ENABLE_VM_TRACING
