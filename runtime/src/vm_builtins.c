@@ -6672,7 +6672,7 @@ static RValue builtin_audio_get_name(VMContext* ctx, RValue* args, MAYBE_UNUSED 
 
     repeat(arrlen(audio->audioGroups), i) {
         DataWin* dw = audio->audioGroups[i];
-        if (dw->sond.count <= (uint32_t) soundIndex) {
+        if (!dw || dw->sond.count <= (uint32_t) soundIndex) {
             continue;
         } else {
             return RValue_makeString(dw->sond.sounds[soundIndex].name);

@@ -193,3 +193,14 @@ Normal launches use persistent dedicated saves. Explicit bounded benchmarks
 use separate saves and optional recorded keyboard input. Deployment uploads
 staged files, verifies the binary SHA256, and refuses to replace a running
 runtime. The obsolete Applications diagnostic entry is removed.
+
+### Audio metadata crash regression
+
+The normal Ports Cyber Owls run crashed near simulation frame 3200 with real
+SDL audio. The same input sequence with real audio reproduced the failure under
+host UBSan: `audio_get_name` dereferenced an unloaded sparse audio-group slot.
+The lookup now skips unloaded groups; a synthetic metadata regression covers
+valid and out-of-range indexes across those holes. Host sanitizer selftests
+and the audio-enabled 4500-step Cyber Owls replay pass. The repaired SP Ports
+replay also reaches its bounded completion and returns to the frontend. This
+fix demonstrates why headless/no-op-audio room smoke tests alone are insufficient.

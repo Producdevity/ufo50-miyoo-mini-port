@@ -60,6 +60,22 @@ int Ufo50_runCompatibilityTests(void) {
     AudioSystem* audio = (AudioSystem*) NoopAudioSystem_create();
     Runner* runner = Runner_create(&data, ctx, renderer, fs, audio, 1234);
 
+    /* Invalid metadata lookups must cross unloaded sparse audio groups safely. */
+    Sound namedSound = {.name = "synthetic"};
+    data.sond.count = 1; data.sond.sounds = &namedSound;
+    arrsetlen(audio->audioGroups, 3);
+    audio->audioGroups[0] = &data;
+    audio->audioGroups[1] = audio->audioGroups[2] = nullptr;
+    RValue soundArg = RValue_makeReal(0);
+    RValue soundName = builtin_audio_get_name(ctx, &soundArg, 1);
+    CHECK_TEST(soundName.type == RVALUE_STRING && strcmp(soundName.string, "synthetic") == 0);
+    RValue_free(&soundName);
+    soundArg = RValue_makeReal(9999);
+    soundName = builtin_audio_get_name(ctx, &soundArg, 1);
+    CHECK_TEST(soundName.type == RVALUE_STRING && strcmp(soundName.string, "<undefined>") == 0);
+    RValue_free(&soundName);
+    data.sond.count = 0; data.sond.sounds = nullptr;
+
     Font fonts[2] = {{0}, {0}};
     fonts[0].present = true;
     data.font.fonts = fonts; data.font.count = 2;

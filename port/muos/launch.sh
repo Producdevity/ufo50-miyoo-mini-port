@@ -17,6 +17,8 @@ if [ -f "$root/benchmark-frames" ]; then
     frames=$(cat "$root/benchmark-frames")
     case "$frames" in ''|*[!0-9]*) echo 'Invalid benchmark frame count'; exit 1;; esac
     [ "$frames" -ge 60 ] && [ "$frames" -le 36000 ] || exit 1
+    # Core files remain private inside the bounded diagnostic run.
+    ulimit -c unlimited || true
     save="$run/saves"
     mkdir -p "$save"
     export UFO50_INPUT_TRACE=1
@@ -34,6 +36,11 @@ else
 fi
 cd "$root/gamefiles"
 printf '%s\n' "$run" > "$root/last-run"
+status=0
 "$@" --renderer software --lazy-rooms --lazy-textures --lazy-audio \
     --load-type load-per-chunk --window-size 640x480 --save-folder "$save" \
-    > "$run/runtime.log" 2>&1
+    > "$run/runtime.log" 2>&1 || status=$?
+if [ -f "$root/benchmark-frames" ] && [ -f core ]; then
+    mv core "$run/core"
+fi
+exit "$status"
