@@ -9,3 +9,7 @@ set(SDL_LIBRARY "${UFO50_ROOT}/.local/deps/lib/libSDL-1.2.so.0" CACHE FILEPATH "
 
 set(CMAKE_AR "${UFO50_ROOT}/scripts/zig-ar.sh")
 set(CMAKE_RANLIB "${UFO50_ROOT}/scripts/zig-ranlib.sh")
+
+# CMake selects these wrappers for LLVM IPO archives as well as normal archives.
+set(CMAKE_C_COMPILER_AR "${UFO50_ROOT}/scripts/zig-ar.sh" CACHE FILEPATH "Zig LLVM archiver" FORCE)
+set(CMAKE_C_COMPILER_RANLIB "${UFO50_ROOT}/scripts/zig-ranlib.sh" CACHE FILEPATH "Zig LLVM ranlib" FORCE)

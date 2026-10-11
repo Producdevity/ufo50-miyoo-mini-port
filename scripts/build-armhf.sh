@@ -12,8 +12,9 @@ esac
   echo 'Run scripts/prepare-sdl.py with a Miyoo ARM32 SDL 1.2 library first.' >&2
   exit 1
 }
-cmake -S runtime -B artifacts/armhf \
-  -DCMAKE_TOOLCHAIN_FILE="$root/build/armhf-zig.cmake" -DCMAKE_SKIP_RPATH=ON \
+# Refresh compiler detection after toolchain changes; retain built object files.
+cmake --fresh -S runtime -B artifacts/armhf \
+  -DCMAKE_TOOLCHAIN_FILE="$root/build/armhf-zig.cmake" -DCMAKE_SKIP_RPATH=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
   -DBACKEND=sdl1 -DAUDIO_BACKEND=sdl1 -DENABLE_LEGACY_GL=OFF \
   -DENABLE_MODERN_GL=OFF -DENABLE_VM_TRACING="$diagnostics" -DENABLE_VM_GML_PROFILER="$diagnostics" \
   -DENABLE_VM_OPCODE_PROFILER="$diagnostics" -DENABLE_SW_RENDERER=ON \

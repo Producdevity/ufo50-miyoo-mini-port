@@ -12,8 +12,9 @@ esac
   echo 'Copy the development SP ARM32 SDL 1.2 library into .local/deps-sp/lib first.' >&2
   exit 1
 }
-cmake -S runtime -B artifacts/sp \
-  -DCMAKE_TOOLCHAIN_FILE="$root/build/armhf-zig.cmake" -DCMAKE_SKIP_RPATH=ON \
+# Refresh compiler detection after toolchain changes; retain built object files.
+cmake --fresh -S runtime -B artifacts/sp \
+  -DCMAKE_TOOLCHAIN_FILE="$root/build/armhf-zig.cmake" -DCMAKE_SKIP_RPATH=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
   -DSDL_LIBRARY="$root/.local/deps-sp/lib/libSDL-1.2.so.0" \
   -DBACKEND=sdl1 -DAUDIO_BACKEND=sdl1 -DENABLE_LEGACY_GL=OFF \
   -DENABLE_MODERN_GL=OFF -DENABLE_VM_TRACING="$diagnostics" -DENABLE_VM_GML_PROFILER="$diagnostics" \

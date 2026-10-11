@@ -15,7 +15,10 @@ binary = ROOT / 'artifacts' / args.target / 'butterscotch'
 cache = (binary.parent / 'CMakeCache.txt').read_text().splitlines()
 features = {line.split(':', 1)[0]: line.split('=', 1)[1] for line in cache
             if line.startswith(('ENABLE_VM_TRACING:', 'ENABLE_VM_GML_PROFILER:', 'ENABLE_VM_OPCODE_PROFILER:'))}
-record = {'diagnostic_features': features, 'schema': 1, 'target': args.target, 'source': source_state(),
+ipo = any(line.startswith('CMAKE_INTERPROCEDURAL_OPTIMIZATION:') and line.endswith('=ON')
+          for line in cache)
+record = {'interprocedural_optimization': ipo, 'diagnostic_features': features,
+          'schema': 1, 'target': args.target, 'source': source_state(),
           'runtime_sha256': sha256(binary), 'elf': inspect_arm32(binary),
           'sdl_reference_sha256': sha256(args.sdl_reference),
           'sdl_headers_commit': json.loads((ROOT / 'upstreams.lock.json').read_text())['sdl_headers']['commit'],

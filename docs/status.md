@@ -326,3 +326,19 @@ state snapshots match the 60 FPS baseline exactly, with no variables filtered
 out. Compatibility tests cover discarded main-frame writes and continued
 user-surface writes; host ASan/UBSan tests pass. This is bounded path parity,
 not exhaustive gameplay coverage. Interactive clocks remain unchanged.
+
+### ARM ThinLTO build and live Vainger timing
+
+Both ARM targets enable CMake interprocedural optimization using Zig's LLVM
+archive wrappers. Compiler detection is refreshed on each configure so stale
+CMake compiler metadata cannot leave IPO without its archiver. The native
+ARM32 build passes compatibility and input selftests on the SP.
+
+With all Draw events preserved, the live SP Vainger run completes 6,000 steps.
+The frame 2,200–4,399 interval presents 29.489 FPS at 58.977 logic steps/second
+over 37.370 seconds; frames 4,400–5,998 present 29.539 FPS at 59.077 steps/second
+over 27.286 seconds. The real output callback mixes 4,712,448 frames with
+8,179,722 nonzero samples. These intervals exclude the final diagnostic dump.
+The launcher requests the stock 1.512 GHz performance governor and restores
+its inherited setting. This approaches the target on the SP; it does not prove
+stable 30 FPS across the collection or performance on the Mini.
