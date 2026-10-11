@@ -71,7 +71,25 @@ void Runner_updateCameraViewSimple(GMLCamera* camera) {
 // Resolves the handler for (objectIndex, eventType, eventSubtype) via the precomputed ResolvedEventTable.
 // Returns the CODE chunk handler id, or -1 if the object does not respond.
 // If outOwnerObjectIndex is non-null, it is set to the resolved owner objectIndex (-1 if not found).
+static uint8_t drawPhaseBit(int32_t subtype) {
+    if (subtype == DRAW_NORMAL) return 1;
+    if (subtype == DRAW_GUI) return 2;
+    if (subtype >= DRAW_BEGIN && subtype <= DRAW_POST) return (uint8_t)(1u << (subtype - DRAW_BEGIN + 2));
+    return 0;
+}
+
+static bool objectLacksDrawPhase(Runner* runner, int32_t objectIndex, int32_t subtype) {
+    uint8_t bit = drawPhaseBit(subtype);
+    return bit && runner->objectDrawMask != nullptr &&
+        (uint32_t)objectIndex < runner->dataWin->objt.count &&
+        !(runner->objectDrawMask[objectIndex] & bit);
+}
+
 static int32_t findEventCodeIdAndOwner(Runner* runner, int32_t objectIndex, int32_t eventType, int32_t eventSubtype, int32_t* outOwnerObjectIndex) {
+    if (eventType == EVENT_DRAW && objectLacksDrawPhase(runner, objectIndex, eventSubtype)) {
+        if (outOwnerObjectIndex != nullptr) *outOwnerObjectIndex = -1;
+        return -1;
+    }
     int32_t slot = EventSlotMap_lookup(&runner->eventSlotMap, eventType, eventSubtype);
     if (0 > slot) {
         if (outOwnerObjectIndex != nullptr) *outOwnerObjectIndex = -1;
@@ -710,6 +728,8 @@ static void fireDrawSubtype(Runner* runner, Drawable* drawables, int32_t drawabl
         Instance* inst = d->instance;
         if (!inst->active || !inst->visible)
             continue;
+
+        if (objectLacksDrawPhase(runner, inst->objectIndex, subtype)) continue;
 
         int32_t ownerObjectIndex = -1;
         int32_t codeId = ResolvedEventTable_lookup(&runner->eventTable, inst->objectIndex, slot, &ownerObjectIndex);
@@ -2370,6 +2390,16 @@ Runner* Runner_create(DataWin* dataWin, VMContext* vm, Renderer* renderer, FileS
     // Build the event dispatch acceleration tables.
     EventSlotMap_build(&runner->eventSlotMap, dataWin);
     ResolvedEventTable_build(&runner->eventTable, dataWin, &runner->eventSlotMap);
+    runner->objectDrawMask = (uint8_t*)safeCalloc(dataWin->objt.count, 1);
+    const int32_t drawPhases[] = {DRAW_NORMAL, DRAW_GUI, DRAW_BEGIN, DRAW_END,
+        DRAW_GUI_BEGIN, DRAW_GUI_END, DRAW_PRE, DRAW_POST};
+    repeat(dataWin->objt.count, objectIndex) {
+        repeat(8, phase) {
+            int32_t slot = EventSlotMap_lookup(&runner->eventSlotMap, EVENT_DRAW, drawPhases[phase]);
+            if (ResolvedEventTable_lookup(&runner->eventTable, objectIndex, slot, nullptr) >= 0)
+                runner->objectDrawMask[objectIndex] |= (uint8_t)(1u << phase);
+        }
+    }
     flattenCollisionEvents(runner);
 
     // Create assets map
@@ -4695,6 +4725,7 @@ void Runner_free(Runner* runner) {
     arrfree(runner->eventDispatchInstances);
     runner->eventDispatchInstances = nullptr;
     ResolvedEventTable_free(&runner->eventTable);
+    free(runner->objectDrawMask); runner->objectDrawMask = nullptr;
     EventSlotMap_destroy(&runner->eventSlotMap);
     shfree(runner->assetsByName);
 

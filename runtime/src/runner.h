@@ -469,6 +469,8 @@ struct Runner {
     EventSlotMap eventSlotMap;
     // Precomputed per-object and per-slot CSR tables of resolved event handlers. Replaces the per-dispatch parent-chain walk in findEventCodeIdAndOwner.
     ResolvedEventTable eventTable;
+    // Immutable response bits for the eight standard Draw phases.
+    uint8_t* objectDrawMask;
     // Precomputed assets map.
     AssetsByNameEntry* assetsByName;
     // For each event type, the deduplicated list of object indices that respond to ANY subtype of that event (including via inheritance). Derived from the event table; used by collision dispatch to skip non-collision objects in the outer loop.

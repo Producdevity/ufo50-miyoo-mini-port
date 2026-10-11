@@ -472,3 +472,11 @@ traversal when the software renderer is discarding the main frame. Draw events
 and both layer scripts still execute; a script that binds a user surface
 continues rendering into it. All 50 seeded host states and final PNGs match
 the previous build exactly, and sanitized compatibility tests pass.
+
+### Cache Draw response bits
+
+Each object keeps one byte indicating which standard Draw phases have a
+resolved handler. Draw dispatch can skip the immutable event-table scan for
+nonresponders, while responding objects still use the same code and owner
+resolution. The cache costs one byte per object. All 50 seeded host states
+and final PNGs remain identical, and sanitized compatibility tests pass.
