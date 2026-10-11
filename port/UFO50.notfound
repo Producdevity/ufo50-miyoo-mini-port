@@ -2,8 +2,8 @@
 GameName="UFO 50"
 GameDir="UFO50"
 GameExecutable="script.sh"
-GameDataFile="script.sh"
-KillAudioserver=0
+GameDataFile="gamefiles/data.win"
+KillAudioserver=1
 PerformanceMode=1
 Arguments=""
 /mnt/SDCARD/Emu/PORTS/launch_standalone.sh "$GameName" "$GameDir" "$GameExecutable" "$Arguments" "$GameDataFile" "$KillAudioserver" "$PerformanceMode"

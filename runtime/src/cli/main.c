@@ -563,6 +563,10 @@ int main(int argc, char* argv[]) {
     if (argc == 3 && strcmp(argv[1], "--audio-selftest") == 0)
         return MaAudioSystem_runTests(argv[2]);
 #endif
+#ifdef USE_SDL1
+    if (argc == 2 && strcmp(argv[1], "--input-selftest") == 0)
+        return Ufo50_sdl1InputTests();
+#endif
     CommandLineArgs args;
     parseCommandLineArgs(&args, argc, argv);
     logColour = !args.disableLogColours;

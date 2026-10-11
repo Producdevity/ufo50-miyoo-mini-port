@@ -125,6 +125,9 @@ typedef struct {
 bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless);
 void platformInitFunctions(Runner *);
 void platformExit(void);
+#ifdef USE_SDL1
+int Ufo50_sdl1InputTests(void);
+#endif
 void platformSwapBuffers(void);
 void *platformGetProcAddress(const char *name);
 double platformGetTime(void);

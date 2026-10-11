@@ -217,3 +217,18 @@ Host ASan/UBSan selftests pass. The seeded 6000-step Vainger screenshot is
 byte-identical; host elapsed time falls from 12.84 to 3.50 seconds. The SP's
 sampled later scene improves from roughly 3 to 24 presented FPS, still below
 the requested 30. Mini & Max and Cyber Owls host room probes also pass.
+
+### Explicit Miyoo integration profile
+
+The Onion launcher selects native 384x216 rendering, 30 Hz presentation, the
+Miyoo keyboard profile, and persistent saves/logs under
+`Saves/CurrentProfile/saves/UFO50`. The shortcut detects `gamefiles/data.win`
+and uses Onion's standard audio-server/performance lifecycle. The keyboard
+profile follows MinUI's Miyoo platform definitions: Space=A, left Ctrl=B,
+left Shift=X, left Alt=Y, Return=Start, right Ctrl=Select. A/Y map to Z, B/X to
+X, Start to the owned game's default D pause binding, and Select to Escape.
+Generic SDL keyboards and the SP's mapped gamepads remain independent.
+The native ARM32 `--input-selftest` passes on the SP loader. This verifies the
+translation, not physical Mini hardware. Sources:
+https://github.com/shauninman/MinUI/blob/main/workspace/miyoomini/platform/platform.h
+and https://onionui.github.io/docs/ports .

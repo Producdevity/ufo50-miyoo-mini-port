@@ -438,12 +438,16 @@ void *platformGetProcAddress(const char *name) {
 
 #endif
 
-static int32_t SDLKeyToGml(int sdlkey) {
-    // Experimental Miyoo SDL key mapping to UFO 50 keyboard defaults.
-    switch (sdlkey) {
-        case SDLK_SPACE: return toupper('z');
-        case SDLK_LCTRL: return toupper('x');
-        case SDLK_LSHIFT: return toupper('d');
+static int32_t SDLKeyToGmlMode(int sdlkey, bool miyoo) {
+    // Miyoo Mini SDL1 keyboard controls, independently selected from SP gamepads.
+    // Source: shauninman/MinUI workspace/miyoomini/platform/platform.h.
+    if (miyoo) {
+        switch (sdlkey) {
+            case SDLK_SPACE: case SDLK_LALT: return 'Z'; // A/Y
+            case SDLK_LCTRL: case SDLK_LSHIFT: return 'X'; // B/X
+            case SDLK_RETURN: return 'D'; // Start: UFO 50 default pause key
+            case SDLK_RCTRL: return VK_ESCAPE; // Select: in-game back/menu
+        }
     }
     // Letters and numbers are the same as GML
     if (sdlkey >= 'a' && sdlkey <= 'z') return toupper(sdlkey);
@@ -485,6 +489,25 @@ case SDLK_KP6:        case SDLK_RIGHT:     return VK_RIGHT;
         case SDLK_PAGEDOWN:  return VK_PAGEDOWN;
         default:             return -1; // Unknown
     }
+}
+
+static int32_t SDLKeyToGml(int sdlkey) {
+    const char* profile = getenv("UFO50_PLATFORM");
+    return SDLKeyToGmlMode(sdlkey, profile && strcmp(profile, "miyoo") == 0);
+}
+
+int Ufo50_sdl1InputTests(void) {
+    require(SDLKeyToGmlMode(SDLK_SPACE, true) == 'Z');
+    require(SDLKeyToGmlMode(SDLK_LCTRL, true) == 'X');
+    require(SDLKeyToGmlMode(SDLK_LSHIFT, true) == 'X');
+    require(SDLKeyToGmlMode(SDLK_LALT, true) == 'Z');
+    require(SDLKeyToGmlMode(SDLK_RETURN, true) == 'D');
+    require(SDLKeyToGmlMode(SDLK_RCTRL, true) == VK_ESCAPE);
+    require(SDLKeyToGmlMode(SDLK_UP, true) == VK_UP);
+    require(SDLKeyToGmlMode(SDLK_SPACE, false) == VK_SPACE);
+    require(SDLKeyToGmlMode(SDLK_RETURN, false) == VK_ENTER);
+    logInfo("SDL1 input selftests passed: explicit Miyoo keys and generic keyboard isolation\n");
+    return 0;
 }
 
 static void platformResetJoysticks(void) {
