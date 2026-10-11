@@ -114,7 +114,7 @@ static void SWRenderer_endFrameEnd(Renderer* renderer)
 {
     SWRenderer* swr = (SWRenderer*) renderer;
     assert(!swr->drawingToSurface);
-    platformSetNextFramebuffer(swr->fb, swr->width, swr->height);
+    if (!swr->discardMainFrame) platformSetNextFramebuffer(swr->fb, swr->width, swr->height);
 }
 
 static void SWRenderer_beginView(Renderer* renderer, int32_t viewX, int32_t viewY, int32_t viewW, int32_t viewH,
@@ -231,6 +231,7 @@ static void SWRenderer_drawSprite(Renderer* renderer, int32_t tpagIndex, float x
                                   float originX, float originY, float xscale, float yscale,
                                   float angleDeg, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     DataWin* dwin = renderer->dataWin;
 
@@ -287,6 +288,7 @@ static void SWRenderer_drawSpritePart(Renderer* renderer, int32_t tpagIndex,
                                       float x, float y, float xscale, float yscale, float angleDeg,
                                       float pivotX, float pivotY, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     DataWin* dwin = renderer->dataWin;
     
@@ -333,6 +335,7 @@ static void SWRenderer_drawSpritePos(Renderer* renderer, int32_t tpagIndex,
                                      float x1, float y1, float x2, float y2,
                                      float x3, float y3, float x4, float y4, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     (void)renderer; (void)tpagIndex;
     (void)x1; (void)y1; (void)x2; (void)y2;
     (void)x3; (void)y3; (void)x4; (void)y4; (void)alpha;
@@ -342,6 +345,7 @@ static void SWRenderer_drawSpritePos(Renderer* renderer, int32_t tpagIndex,
 static void SWRenderer_drawRectangle(Renderer* renderer, float x1, float y1, float x2, float y2,
                                      uint32_t color, float alpha, bool outline)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     uintpixel_t pxcolor = swrConvertPixel(color);
     
     if (outline)
@@ -354,6 +358,7 @@ static void SWRenderer_drawRectangleColor(Renderer* renderer, float x1, float y1
                                           uint32_t color1, uint32_t color2, uint32_t color3, uint32_t color4,
                                           float alpha, bool outline)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     uintpixel_t pxcolor1 = swrConvertPixel(color1);
     uintpixel_t pxcolor2 = swrConvertPixel(color2);
     uintpixel_t pxcolor3 = swrConvertPixel(color3);
@@ -368,6 +373,7 @@ static void SWRenderer_drawRectangleColor(Renderer* renderer, float x1, float y1
 static void SWRenderer_drawLine(Renderer* renderer, float x1, float y1, float x2, float y2,
                                 float width, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     (void)renderer; (void)x1; (void)y1; (void)x2; (void)y2;
     (void)width; (void)color; (void)alpha;
     
@@ -383,6 +389,7 @@ static void SWRenderer_drawTriangle(Renderer* renderer,
                                     uint32_t color1, uint32_t color2, uint32_t color3,
                                     float alpha, bool outline)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     if (outline)
     {
         uintpixel_t color1cvt = swrConvertPixel(color1);
@@ -401,12 +408,14 @@ static void SWRenderer_drawTriangle(Renderer* renderer,
 static void SWRenderer_drawLineColor(Renderer* renderer, float x1, float y1, float x2, float y2,
                                      float width, uint32_t color1, uint32_t color2, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     swrDrawLine(renderer, x1, y1, x2, y2, width, swrConvertPixel(color1), swrConvertPixel(color2), alpha);
 }
 
 static void SWRenderer_drawText(Renderer* renderer, const char* text, float x, float y,
                                 float xscale, float yscale, float angleDeg, float lineSeparation)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     swrDrawText(swr, text, x, y, xscale, yscale, angleDeg, renderer->drawColor, renderer->drawAlpha, lineSeparation);
 }
@@ -416,6 +425,7 @@ static void SWRenderer_drawTextColor(Renderer* renderer, const char* text, float
                                      int32_t c1, int32_t c2, int32_t c3, int32_t c4, MAYBE_UNUSED float alpha,
                                      float lineSeparation)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     
     // TODO: allow c2, c3, c4
@@ -431,6 +441,7 @@ static void SWRenderer_drawSpriteTiled(Renderer* renderer, int32_t tpagIndex,
                                        float xscale, float yscale, bool tileX, bool tileY,
                                        float roomW, float roomH, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     DataWin* dwin = renderer->dataWin;
 
@@ -498,6 +509,7 @@ static void SWRenderer_drawSpriteTiled(Renderer* renderer, int32_t tpagIndex,
 
 static void SWRenderer_drawSurfaceTiled(Renderer* renderer, int32_t surfaceID, float x, float y, float xscale, float yscale, float roomW, float roomH, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
 
     if (0 > surfaceID || swr->surfaceCount <= (size_t) surfaceID) return;
@@ -562,6 +574,7 @@ static void SWRenderer_flush(Renderer* renderer)
 
 static void SWRenderer_clearScreen(Renderer* renderer, uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     
     color = swrConvertPixel(color);
@@ -759,6 +772,7 @@ static void SWRenderer_drawSurface(Renderer* renderer, int32_t surfaceID,
                                    float x, float y, float xscale, float yscale, float angleDeg,
                                    uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     SWTexture* surface, localSurface = {0};
     if (surfaceID == APPLICATION_SURFACE_ID) {
@@ -1105,6 +1119,7 @@ static void SWRenderer_drawTiledPart(Renderer* renderer, int32_t tpagIndex,
                                      float dstX, float dstY, float dstW, float dstH,
                                      uint32_t color, float alpha)
 {
+    if (swrDiscardingMainFrame((SWRenderer*)renderer)) return;
     UNIMP();
     (void)renderer; (void)tpagIndex;
     (void)srcX; (void)srcY; (void)srcW; (void)srcH;
@@ -1125,8 +1140,13 @@ static int32_t SWRenderer_ensureApplicationSurface(Renderer* renderer, int32_t w
 
 static RendererVtable swrVtable;
 
+void SWRenderer_setFrameRendering(Renderer* renderer, bool enabled) {
+    ((SWRenderer*)renderer)->discardMainFrame = !enabled;
+}
+
 void SWRenderer_clearFrameBuffer(Renderer* renderer, uint32_t color)
 {
+    if (((SWRenderer*)renderer)->discardMainFrame) return;
     SWRenderer* swr = (SWRenderer*) renderer;
     
     uintpixel_t pxcolor = swrConvertPixel(color);

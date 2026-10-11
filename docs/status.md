@@ -312,3 +312,17 @@ The full 30/60 real-mixer comparison exposes entity or RNG differences in some
 games. Skipping entire Draw-event passes is therefore not a valid general 30 FPS
 implementation. Preserving Draw-event semantics while reducing framebuffer work
 is a required follow-up before a distributable default is accepted.
+
+### Preserve Draw-event behavior at 30 FPS
+
+Draw events now run on every simulation step. Only writes to the main software
+framebuffer and display presentation are limited to 30 Hz; user-created surfaces
+remain writable every step. This replaces the earlier whole-Draw-pass skip,
+which changed entity state or RNG in nine recorded game paths.
+
+Headless fixed-time diagnostics also use a simulated monotonic and calendar
+clock. With identical input plans and the real offline mixer, all 50 complete
+state snapshots match the 60 FPS baseline exactly, with no variables filtered
+out. Compatibility tests cover discarded main-frame writes and continued
+user-surface writes; host ASan/UBSan tests pass. This is bounded path parity,
+not exhaustive gameplay coverage. Interactive clocks remain unchanged.

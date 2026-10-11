@@ -66,6 +66,7 @@ typedef struct
     Renderer base;
     size_t textureCacheBudget;
     bool spriteFastPath;
+    bool discardMainFrame;
     
     // Window Properties
     uint16_t width;
@@ -109,6 +110,10 @@ typedef struct
     int writeMask;
 }
 SWRenderer;
+
+static inline bool swrDiscardingMainFrame(const SWRenderer* swr) {
+    return swr->discardMainFrame && !swr->drawingToSurface;
+}
 
 // Inlined function definitions included below
 #include "sw_pixel_calc.h"

@@ -559,6 +559,8 @@ struct Runner {
     int32_t forcedDepth;
     // The time between the last frame and the current frame, stored in microseconds.
     double deltaTime;
+    bool diagnosticClock;
+    double diagnosticTimeUsec;
     char* windowTitle;
 
     // ===[ Builtin function state ]===

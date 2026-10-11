@@ -1070,8 +1070,9 @@ RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVar
         case BUILTIN_VAR_CURRENT_SECOND:
         case BUILTIN_VAR_CURRENT_WEEKDAY:
         case BUILTIN_VAR_CURRENT_YEAR: {
-            time_t now = time(NULL);
-            struct tm *t = localtime(&now);
+            time_t now = runner->diagnosticClock ?
+                (time_t)(1704067200 + runner->diagnosticTimeUsec / 1000000.0) : time(NULL);
+            struct tm *t = runner->diagnosticClock ? gmtime(&now) : localtime(&now);
             switch (builtinVarId) {
                 case BUILTIN_VAR_CURRENT_DAY:     return RValue_makeReal(t->tm_mday);
                 case BUILTIN_VAR_CURRENT_HOUR:    return RValue_makeReal(t->tm_hour);
@@ -1084,6 +1085,7 @@ RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVar
             }
         }
         case BUILTIN_VAR_CURRENT_TIME:
+            if (runner->diagnosticClock) return RValue_makeReal(runner->diagnosticTimeUsec / 1000.0);
             return RValue_makeReal((int64_t)(nowNanos() - runner->gameStartTime) / 1000000.0);
 
         // Arguments
@@ -12687,6 +12689,7 @@ static RValue builtin_position_meeting(VMContext* ctx, RValue* args, int32_t arg
 
 // Misc stubs
 static RValue builtin_get_timer(VMContext* ctx, MAYBE_UNUSED RValue* args, MAYBE_UNUSED int32_t argCount) {
+    if (ctx->runner->diagnosticClock) return RValue_makeReal(ctx->runner->diagnosticTimeUsec);
     return RValue_makeReal((int64_t)(nowNanos() - ctx->runner->gameStartTime) / 1000.0);
 }
 

@@ -892,6 +892,8 @@ int loop(CommandLineArgs args, const char *argv0) {
 
         // Initialize the runner
         Runner* runner = Runner_create(dataWin, vm, renderer, (FileSystem*) overlayFs, audioSystem, args.seed);
+        runner->diagnosticClock = args.headless && (offlineAudio ||
+            (getenv("UFO50_FIXED_DELTA_TIME") && strcmp(getenv("UFO50_FIXED_DELTA_TIME"), "1") == 0));
 
         if (!args.lazyTextures) {
             repeat(runner->dataWin->txtr.count, i) {
@@ -994,10 +996,10 @@ int loop(CommandLineArgs args, const char *argv0) {
             runner->deltaTime = (int64_t)(frameStartNow - lastFrameStartTime) / 1000.0;
             lastFrameStartTime = frameStartNow;
             // Explicit headless diagnostics use simulated time, independent of host speed.
-            if (args.headless && (offlineAudio || (getenv("UFO50_FIXED_DELTA_TIME") &&
-                strcmp(getenv("UFO50_FIXED_DELTA_TIME"), "1") == 0))) {
+            if (runner->diagnosticClock) {
                 double hz = runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed;
                 runner->deltaTime = 1000000.0 / (hz > 0 ? hz : 60);
+                runner->diagnosticTimeUsec += runner->deltaTime;
             }
 
             // Clear last frame's pressed/released state, then poll new input events
@@ -1202,7 +1204,11 @@ int loop(CommandLineArgs args, const char *argv0) {
                 const char* shotFrame = getenv("UFO50_SCREENSHOT_FRAME");
                 if (shotFrame && atoi(shotFrame) == runner->frameCount) drawThisStep = true;
                 uint64_t drawStarted = nowNanos();
-                if (drawThisStep) {
+                // Draw events can update game state and RNG. Always execute them;
+                // only main-frame rasterization and presentation are rate-limited.
+#ifdef ENABLE_SW_RENDERER
+                if (gfx == SOFTWARE) SWRenderer_setFrameRendering(renderer, drawThisStep);
+#endif
                 // Clear the default framebuffer (window background) to black
 #ifdef ENABLE_SW_RENDERER
                 if (gfx == SOFTWARE)
@@ -1302,8 +1308,9 @@ int loop(CommandLineArgs args, const char *argv0) {
                 }
 #endif
 
+                perfDrawWork += nowNanos() - drawStarted;
+                if (drawThisStep) {
                     perfDraws++;
-                    perfDrawWork += nowNanos() - drawStarted;
                     // Only present when there isn't a Draw-event room change.
                     if (runner->pendingRoom == -1) {
                         platformSwapBuffers();

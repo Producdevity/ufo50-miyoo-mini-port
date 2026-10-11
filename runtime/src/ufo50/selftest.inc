@@ -208,7 +208,16 @@ int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(swrEnsureTextureIsLoaded(swr, swr->textureCount));
     renderer->vtable->beginFrame(renderer, 64, 64, 64, 64);
     int surface = renderer->vtable->createSurface(renderer, 8, 8);
-    CHECK_TEST(surface >= 0 && renderer->vtable->setRenderTarget(renderer, surface, false));
+    CHECK_TEST(surface >= 0);
+    SWRenderer_setFrameRendering(renderer, false);
+    renderer->vtable->clearScreen(renderer, 0x00010203, 1);
+    uintpixel_t before = swr->fb[0];
+    renderer->vtable->clearScreen(renderer, 0x00040506, 1);
+    CHECK_TEST(swr->fb[0] == before);
+    CHECK_TEST(renderer->vtable->setRenderTarget(renderer, surface, false));
+    renderer->vtable->clearScreen(renderer, 0x00010203, 1);
+    CHECK_TEST(swr->fb[0] == (swrConvertPixel(0x00010203) | TRANSPARENT_MASK));
+    SWRenderer_setFrameRendering(renderer, true);
     Runner_free(runner); VM_free(ctx);
     audio->vtable->destroy(audio); renderer->vtable->destroy(renderer); NoopFileSystem_destroy(fs);
     free(data.tpag.items);
