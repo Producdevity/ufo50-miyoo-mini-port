@@ -342,3 +342,18 @@ over 27.286 seconds. The real output callback mixes 4,712,448 frames with
 The launcher requests the stock 1.512 GHz performance governor and restores
 its inherited setting. This approaches the target on the SP; it does not prove
 stable 30 FPS across the collection or performance on the Mini.
+
+### Mini launcher integration
+
+The mounted card is Onion v4.3.1-1. Its actual Ports importer and standalone
+launcher search with `find -iname`: the data checker must use `data.win`, not
+`gamefiles/data.win`. The required file remains in the `gamefiles/` directory.
+The launcher now owns its 1.5 GHz clock/performance request and restores the
+inherited frequency and governor. Fixture tests cover nonzero runtime exits,
+SIGTERM child cleanup, exact restoration and rejection of invalid settings.
+`UFO50_PERF_LOG=0` now disables performance logging as intended.
+
+The native ARM32 compatibility and Mini-key mapping selftests pass on the SP
+with the Mini SDK SDL 1.2 and the mounted card's glibc/loader. This tests ABI and
+logic only. The card's hardware SDL also needs SigmaStar libraries supplied by
+Mini firmware; it cannot operate the SP's different display/audio hardware.

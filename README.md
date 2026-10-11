@@ -1,100 +1,74 @@
 # UFO 50 for Miyoo Mini
 
-A native ARM32 UFO 50 port based on the Butterscotch interpreter and software
-renderer. Development uses an RG35XX SP running muOS; the target hardware is the
-Miyoo Mini and Mini Plus running Onion. **This is a development build. Physical
-Miyoo validation and 30 FPS across the collection are still outstanding.**
+UFO 50 running through a native ARM32 interpreter on Miyoo Mini and Mini Plus
+with Onion. You need your own Windows copy of the game.
 
-The owned Windows game runs directly from its assets. The PortMaster port was
-investigated as the starting point, but its GameMaker runner/GLES path does not
-fit the original Mini. This project uses native ARM32, software rendering,
-packed palette textures, bounded texture caching, and an SDL audio mixer.
-It does not require the PortMaster runtime on the Mini.
+This is a development build. On the muOS SP, gameplay controls, audio, save
+reload and quitting work. Tested scenes run around 30 FPS; Vainger averages
+29.5 FPS. Mini hardware performance has not been measured yet.
 
-## Verified so far
+## Install
 
-- All 50 games reach their selected game rooms in bounded host smoke tests.
-- The SP launches the native runtime from **Ports → UFO50** and returns through
-  the normal muOS loader. There is no Applications entry.
-- Barbuta sustains 29.996 presented FPS over a 123-second sampled interval;
-  Cyber Owls sustains 29.980 FPS over a 20-second sampled gameplay interval.
-  Simulation remains approximately 60 steps/second in those intervals.
-- Actual game audio reaches the SP's codec sink. Physical-controller events
-  reach the game; dedicated action/pause/save regression testing continues.
-- Vainger exposes heavier CPU and memory demands and is still being optimized.
+1. Enable **Ports Collection** in Onion's Package Manager.
+2. Extract `ufo50-miyoo-mini-development.zip` to the root of your SD card.
+3. Open your Windows UFO 50 installation folder. In Steam, right-click the game
+   and choose **Manage → Browse local files**.
+4. Create `Roms/PORTS/Games/UFO50/gamefiles` on the SD card. Copy the contents of
+   the Windows game folder into it. Keep the audio groups, texture files, fonts
+   and language folders together. The Windows executable is not needed.
+5. Run **~Import ports** in Onion's Ports collection, then open **Action → UFO50**.
 
-These measurements describe the tested SP scenes, not every game or the Mini.
-Read [current evidence and limits](docs/status.md) and the
-[source-based research](docs/research-2026-09.md). Proprietary inputs, screenshots,
-saves, audio recordings, and generated reports stay outside Git.
+The file layout should look like this:
 
-## Install on Miyoo Mini / Mini Plus
-
-Enable Onion's Ports Collection. Extract the Miyoo development archive to the
-SD root. Supply your owned Windows UFO 50 files using the host importer:
-
-```sh
-python3 scripts/ufo50.py import /path/to/UFO50.zip /path/to/SD/Roms/PORTS/Games/UFO50/gamefiles
+```text
+SD card/
+  Roms/PORTS/Games/UFO50/
+    script.sh
+    bin/butterscotch
+    gamefiles/
+      data.win
+      audiogroup1.dat
+      ...the remaining game assets and folders...
 ```
 
-The destination must be new; the importer refuses overwrites, ambiguous game
-roots, unsafe ZIP paths, and symlinks. It imports game assets only, excluding
-executables and saves. Keep the original ZIP. Run Onion's `~Import ports`, then
-launch UFO 50 from Ports. Saves and logs belong to
-`Saves/CurrentProfile/saves/UFO50`, separate from the install directory.
+**`data.win` must be at `Roms/PORTS/Games/UFO50/gamefiles/data.win`.** Extract the
+files first; putting a ZIP or an extra UFO50 folder inside `gamefiles` will not
+work. Game files are not included in the download.
 
-The runtime links to the firmware's SDL 1.2; libraries from the SP or Miyoo Flip
-must not be substituted. A physical Mini launch, input, audio, memory, and
-performance pass is required before treating this package as a validated release.
+## Controls and saves
 
-## Install on the muOS SP development device
+| Button | Action |
+| --- | --- |
+| D-pad | Move / select |
+| A or Y | First action / confirm |
+| B or X | Second action |
+| Start | Pause menu |
+| Select | Back / menu |
 
-The SP archive has two roots: copy `mmc/` contents to `/mnt/mmc/` and `sdcard/`
-contents to `/mnt/sdcard/`. Import owned assets into
-`/mnt/mmc/.ufo50-dev/gamefiles/`. The shortcut is
-`/mnt/sdcard/ROMS/Ports/UFO50.sh`; launch **Ports → UFO50**.
-Normal saves persist under `/mnt/mmc/.ufo50-dev/saves/`; logs are in `runs/`.
+Use the game's menu to return to the library and quit. Saves are stored in
+`Saves/CurrentProfile/saves/UFO50`. Launcher logs are in its `logs` folder.
+Reinstalling the port does not require deleting your saves.
 
-For this repository's configured development device:
+The launcher requests 1.5 GHz through Onion's clock helper, as the Balatro port
+does, and restores the previous settings when the game closes. Set
+`UFO50_CPU_MHZ=off` in `script.sh` if you want to keep your existing clock.
 
-```sh
-sh scripts/build-sp.sh
-sh scripts/deploy-sp.sh muos-sp
-```
+## Development
 
-Deployment verifies the runtime hash, stages replacements, and refuses to
-replace a running game. It preserves gamefiles and saves. Existing saves should
-be backed up before any manual installation.
+The SP version appears under **Ports → UFO50**. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for builds, asset importing, SP installation
+and tests. [docs/status.md](docs/status.md) records measured results and known
+limits. All 50 games enter their selected rooms in bounded host tests with the
+real audio mixer; those tests do not cover every level or feature.
 
-## Build and investigate
+Source, launchers and build scripts live in this repository. Game files, saves,
+recordings and generated builds stay outside Git. Packages include the exact
+source used to build the runtime.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for dependencies, reproducible builds,
-regression checks, bounded probes, and device diagnostics. The repository uses
-`master`. Game data is not required for synthetic compatibility/audio tests.
+## Credits and license
 
-```sh
-sh scripts/check.sh
-sh scripts/build-host.sh
-artifacts/host/butterscotch --compat-selftest
-python3 scripts/test-audio.py artifacts/host/butterscotch
-```
-
-Cross-builds use Zig 0.16.0, ARMv7 hard-float, and pinned SDL 1.2 headers. Packages
-require a clean source commit and matching build records, check the ELF ABI and
-dynamic dependencies, include the exact committed source and licenses, and
-exclude game data. Development archives are generated with:
-
-```sh
-sh scripts/build-armhf.sh
-sh scripts/build-sp.sh
-python3 scripts/package.py
-```
-
-## License and credits
-
-Port and vendored runtime source are AGPL-3.0; retained dependencies have their
-own licenses. See [NOTICE](NOTICE), [LICENSE](LICENSE), and the source archive
-included in each package. Credit belongs to the Butterscotch developers and
-contributors, the PortMaster developers for their earlier UFO 50 work, and the
-Onion/muOS communities. UFO 50 and its assets belong to their respective owners;
-this repository does not contain the game or distribute it.
+Based on [Butterscotch](https://github.com/cobaltgit/Butterscotch), with thanks to
+its contributors, the PortMaster UFO 50 port, and the Onion and muOS developers.
+Port and runtime source are AGPL-3.0; dependency licenses are retained. See
+[LICENSE](LICENSE) and [NOTICE](NOTICE). UFO 50 belongs to its creators; this
+repository does not distribute the game.

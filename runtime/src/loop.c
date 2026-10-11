@@ -978,7 +978,8 @@ int loop(CommandLineArgs args, const char *argv0) {
         double renderLimit = renderEnv ? atof(renderEnv) : 0;
         if (!isfinite(renderLimit) || renderLimit < 1 || renderLimit > 120) renderLimit = 0;
         Ufo50FrameClock renderClock = {0};
-        bool perfEnabled = getenv("UFO50_PERF_LOG") != nullptr;
+        const char* perfEnv = getenv("UFO50_PERF_LOG");
+        bool perfEnabled = perfEnv && strcmp(perfEnv, "0") != 0;
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
         uint64_t perfWork = 0, perfDrawWork = 0;
         while (true) {
