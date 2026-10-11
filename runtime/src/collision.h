@@ -8,6 +8,7 @@
 #include "vm.h"
 
 #include "math_compat.h"
+#include "string_compat.h"
 
 // Checks if an instance matches a collision target.
 // target >= INSTANCE_ID_BASE: instance ID (match specific instance)
@@ -19,11 +20,6 @@ static inline bool Collision_matchesTarget(DataWin* dataWin, Instance* inst, int
     return VM_isObjectOrDescendant(dataWin, inst->objectIndex, target);
 }
 
-typedef struct {
-    GMLReal left, right, top, bottom;
-    bool valid;
-} InstanceBBox;
-
 // Returns the collision sprite for an instance (mask sprite if set, else display sprite)
 static inline Sprite* Collision_getSprite(DataWin* dataWin, Instance* inst) {
     int32_t sprIdx = (inst->maskIndex >= 0) ? inst->maskIndex : inst->spriteIndex;
@@ -32,7 +28,7 @@ static inline Sprite* Collision_getSprite(DataWin* dataWin, Instance* inst) {
 }
 
 // Computes the axis-aligned bounding box for an instance using its collision sprite
-static inline InstanceBBox Collision_computeBBox(Runner* runner, Instance* inst) {
+static inline InstanceBBox Collision_computeBBoxUncached(Runner* runner, Instance* inst) {
     InstanceBBox ret;
     Sprite* spr = Collision_getSprite(runner->dataWin, inst);
     if (spr == nullptr) {
@@ -104,6 +100,29 @@ static inline InstanceBBox Collision_computeBBox(Runner* runner, Instance* inst)
     ret.bottom = bottom;
     ret.valid = true;
     return ret;
+}
+
+// Validate the values themselves so direct engine writes and sprite metadata
+// changes cannot leave a stale box, even when no spatial-grid dirty flag is set.
+static inline InstanceBBox Collision_computeBBox(Runner* runner, Instance* inst) {
+    Sprite* sprite = Collision_getSprite(runner->dataWin, inst);
+    if (sprite == nullptr) return (InstanceBBox){0};
+    float transform[5] = {inst->x, inst->y, inst->imageXscale, inst->imageYscale, inst->imageAngle};
+    int32_t geometry[9] = {sprite->bboxMode, sprite->width, sprite->height,
+        sprite->marginLeft, sprite->marginRight, sprite->marginTop, sprite->marginBottom,
+        sprite->originX, sprite->originY};
+    InstanceBBoxCache* cache = &inst->bboxCache;
+    if (cache->initialized && cache->sprite == sprite &&
+        cache->compatibilityMode == runner->collisionCompatibilityMode &&
+        memcmp(cache->transform, transform, sizeof(transform)) == 0 &&
+        memcmp(cache->geometry, geometry, sizeof(geometry)) == 0) return cache->bbox;
+    cache->bbox = Collision_computeBBoxUncached(runner, inst);
+    cache->sprite = sprite;
+    memcpy(cache->transform, transform, sizeof(transform));
+    memcpy(cache->geometry, geometry, sizeof(geometry));
+    cache->compatibilityMode = runner->collisionCompatibilityMode;
+    cache->initialized = true;
+    return cache->bbox;
 }
 
 static inline bool Collision_hasFrameMasks(Sprite* sprite) {

@@ -443,3 +443,13 @@ keep their own region and continue updating at the logic rate. All 50 seeded
 host states and final PNGs match the collision-cache baseline exactly.
 Sanitized compatibility tests pass, including main-frame discard and surface
 raster bounds.
+
+### Cache validated collision boxes
+
+Collision boxes now reuse a per-instance cache keyed by all transform values,
+sprite geometry and collision compatibility mode. The key is checked from live
+values, including direct engine writes, rather than relying on spatial-grid
+dirty flags. A 1,000-case oracle test varies positions, positive/negative scales,
+rotation, sprite origins, margins and rounding mode, then checks repeated hits.
+Missing masks return invalid boxes. All 50 host game states still match exactly
+and sanitized compatibility tests pass.

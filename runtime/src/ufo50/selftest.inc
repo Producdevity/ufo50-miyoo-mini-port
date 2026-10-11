@@ -105,6 +105,33 @@ int Ufo50_runCompatibilityTests(void) {
     repeat(3, i) { arrfree(objectLists[i]); arrfree(exactLists[i]); arrfree(targetLists[i]); }
     arrfree(orderRunner.instanceSnapshots);
 
+    /* Cached collision geometry matches the uncached oracle after direct writes. */
+    Sprite bboxSprite = {.width = 16, .height = 12, .marginLeft = 1, .marginRight = 14,
+        .marginTop = 2, .marginBottom = 10, .originX = 8, .originY = 6};
+    data.sprt.count = 1; data.sprt.sprites = &bboxSprite;
+    Instance bboxInstance = {.spriteIndex = 0, .maskIndex = -1};
+    repeat(1000, i) {
+        bboxInstance.x = i * 0.125f - 40; bboxInstance.y = i * -0.2f + 60;
+        bboxInstance.imageXscale = (i % 5 - 2) * 0.75f;
+        bboxInstance.imageYscale = (i % 7 - 3) * 0.5f;
+        bboxInstance.imageAngle = (i % 3 == 0) ? 0 : i * 13.0f;
+        bboxSprite.bboxMode = i % 2;
+        bboxSprite.originX = i % 16; bboxSprite.marginRight = 12 + i % 3;
+        runner->collisionCompatibilityMode = i % 2;
+        InstanceBBox expected = Collision_computeBBoxUncached(runner, &bboxInstance);
+        repeat(2, hit) {
+            InstanceBBox actual = Collision_computeBBox(runner, &bboxInstance);
+            CHECK_TEST(actual.valid == expected.valid && actual.left == expected.left &&
+                actual.right == expected.right && actual.top == expected.top && actual.bottom == expected.bottom);
+        }
+    }
+    bboxInstance.maskIndex = 7;
+    CHECK_TEST(!Collision_computeBBox(runner, &bboxInstance).valid);
+    bboxInstance.maskIndex = -1;
+    CHECK_TEST(Collision_computeBBox(runner, &bboxInstance).valid);
+    runner->collisionCompatibilityMode = false;
+    data.sprt.count = 0; data.sprt.sprites = nullptr;
+
     /* Invalid metadata lookups must cross unloaded sparse audio groups safely. */
     Sound namedSound = {.name = "synthetic"};
     data.sond.count = 1; data.sond.sounds = &namedSound;
