@@ -37,3 +37,19 @@ loads now retain group IDs and use lazy per-chunk data loading. The SDL1 callbac
 also sizes mono underrun clearing by its actual channel count. This proves
 mixer behavior; a successful device output path and audible game sound are
 separate pending checks.
+
+## ARM32 backend chunk 2026-10-11
+
+SDL1 now reads the firmware-selected controller file and gives explicit SDL
+mapping strings precedence. It records the actual raw capabilities and optional
+GML button transitions. On the SP it identifies muOS-Keys with 15 buttons,
+3 axes and 1 hat. Native regression suites pass.
+
+Headless mode no longer initializes video or opens a video mode through a game
+resize call. Diagnostic keyboard playback may explicitly suppress physical
+pad state. The corrected SP probe completes 6,000 frames in 76 seconds while
+the frontend remains active, reaches Barbuta (`rm40_Traps`), and renders the
+same scene as the host. Median execution time is 14.14 ms, p95 16.55 ms. This
+background/headless run has no audio or physical presentation and is not a
+30 FPS acceptance result. Sanitized compatibility and mixer tests also pass
+with AddressSanitizer and UBSan (macOS does not support LeakSanitizer).

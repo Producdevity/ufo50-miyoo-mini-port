@@ -20,6 +20,7 @@
 #include "runner_mouse.h"
 
 static Runner *g_runner;
+static bool g_headless;
 static int32_t fbWidth, fbHeight;
 static SDL_Surface* scr;
 static SDL_Joystick* openJoysticks[MAX_GAMEPADS];
@@ -133,78 +134,97 @@ static void parseMappingField(GamepadMapping* mapping, const char* key, const ch
 #define MAPPING_PLATFORM_STR "platform:Unknown" //Gamepad wont work at all here
 #endif
 
-static void loadGamepadMappings(void) {
-    const char* dbPath = "gamecontrollerdb.txt";
-    FILE* f = fopen(dbPath, "rb");
-    if (!f) {
-        logWarn("Gamepad: SDL gamecontrollerdb.txt not found at %s, ignoring mappings\n", dbPath);
+static void applyGamepadMapping(char* line) {
+    char* guid = line;
+    char* name = strchr(guid, ',');
+    if (!name) return;
+    *name++ = '\0';
+
+    char* mapping_str = strchr(name, ',');
+    if (!mapping_str) return;
+    *mapping_str++ = '\0';
+
+    if (strstr(mapping_str, "platform:") != NULL && strstr(mapping_str, MAPPING_PLATFORM_STR) == NULL) {
         return;
     }
 
-    char line[1024];
-    while (fgets(line, sizeof(line), f)) {
-        size_t len = strlen(line);
-        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
-            line[--len] = '\0';
+    GamepadMapping temp;
+    temp.valid = true;
+    temp.max_button = -1;
+    temp.max_axis = -1;
+    temp.max_hat = -1;
+    for (int i = 0; i < GP_BUTTON_COUNT; i++) {
+        temp.button_map[i] = -1;
+        temp.hat_map[i] = -1;
+        temp.hat_mask[i] = -1;
+        temp.axis_button_map[i] = -1;
+        temp.axis_button_sign[i] = 1.0f;
+    }
+    for (int i = 0; i < GP_AXIS_COUNT; i++) {
+        temp.axis_map[i] = -1;
+    }
+
+    char* token = strtok(mapping_str, ",");
+    while (token) {
+        char* colon = strchr(token, ':');
+        if (colon) {
+            *colon = '\0';
+            parseMappingField(&temp, token, colon + 1);
         }
-        if (len == 0 || line[0] == '#') continue;
+        token = strtok(NULL, ",");
+    }
 
-        char* guid = line;
-        char* name = strchr(guid, ',');
-        if (!name) continue;
-        *name++ = '\0';
-
-        char* mapping_str = strchr(name, ',');
-        if (!mapping_str) continue;
-        *mapping_str++ = '\0';
-
-        if (strstr(mapping_str, "platform:") != NULL && strstr(mapping_str, MAPPING_PLATFORM_STR) == NULL) {
-            continue;
-        }
-
-        GamepadMapping temp;
-        temp.valid = true;
-        temp.max_button = -1;
-        temp.max_axis = -1;
-        temp.max_hat = -1;
-        for (int i = 0; i < GP_BUTTON_COUNT; i++) {
-            temp.button_map[i] = -1;
-            temp.hat_map[i] = -1;
-            temp.hat_mask[i] = -1;
-            temp.axis_button_map[i] = -1;
-            temp.axis_button_sign[i] = 1.0f;
-        }
-        for (int i = 0; i < GP_AXIS_COUNT; i++) {
-            temp.axis_map[i] = -1;
-        }
-
-        char* token = strtok(mapping_str, ",");
-        while (token) {
-            char* colon = strchr(token, ':');
-            if (colon) {
-                *colon = '\0';
-                parseMappingField(&temp, token, colon + 1);
-            }
-            token = strtok(NULL, ",");
-        }
-
-        for (int i = 0; i < MAX_GAMEPADS; i++) {
-            SDL_Joystick* joy = openJoysticks[i];
-            if (joy && !joystickMappings[i].valid) {
-                const char* jname = SDL_JoystickName(i);
-                if (jname && strcasecmp(jname, name) == 0) {
-                    joystickMappings[i] = temp;
-                    logInfo("Gamepad: Mapped '%s' (slot %d)\n", jname, i);
-                }
+    for (int i = 0; i < MAX_GAMEPADS; i++) {
+        SDL_Joystick* joy = openJoysticks[i];
+        if (joy) {
+            const char* jname = SDL_JoystickName(i);
+            if (jname && strcasecmp(jname, name) == 0) {
+                joystickMappings[i] = temp;
+                logInfo("Gamepad: Mapped '%s' (slot %d)\n", jname, i);
             }
         }
     }
-    fclose(f);
+}
+
+static void loadGamepadMappings(void) {
+    const char* dbPath = getenv("SDL_GAMECONTROLLERCONFIG_FILE");
+    if (!dbPath || !*dbPath) dbPath = "gamecontrollerdb.txt";
+    FILE* f = fopen(dbPath, "rb");
+    if (f) {
+        char line[2048];
+        while (fgets(line, sizeof(line), f)) {
+            line[strcspn(line, "\r\n")] = 0;
+            if (*line && *line != '#') applyGamepadMapping(line);
+        }
+        fclose(f);
+    } else {
+        logWarn("Gamepad: mapping file unavailable: %s\n", dbPath);
+    }
+    /* The firmware's explicit mappings take precedence over the database.
+     * SDL 1.2 has no GameController API, so match its measured joystick name. */
+    const char* env = getenv("SDL_GAMECONTROLLERCONFIG");
+    if (env && *env) {
+        char* mappings = safeStrdup(env);
+        char* line = mappings;
+        while (*line) {
+            char* end = strchr(line, '\n');
+            if (end) *end = 0;
+            if (*line) applyGamepadMapping(line);
+            if (!end) break;
+            line = end + 1;
+        }
+        free(mappings);
+    }
+    repeat(MAX_GAMEPADS, i) {
+        if (openJoysticks[i]) logInfo("Input: SDL1 slot=%d name=%s buttons=%d axes=%d hats=%d mapped=%d\n",
+            i, SDL_JoystickName(i), SDL_JoystickNumButtons(openJoysticks[i]),
+            SDL_JoystickNumAxes(openJoysticks[i]), SDL_JoystickNumHats(openJoysticks[i]), joystickMappings[i].valid);
+    }
 }
 void platformSetWindowTitle(const char* title) {
     char windowTitle[256];
     snprintf(windowTitle, sizeof(windowTitle), "Butterscotch - %s", title);
-    SDL_WM_SetCaption(windowTitle, NULL);
+    if (!g_headless) SDL_WM_SetCaption(windowTitle, NULL);
 }
 
 bool platformGetWindowSize(int32_t* outW, int32_t* outH) {
@@ -222,6 +242,7 @@ void platformSetWindowSize(int32_t width, int32_t height) {
     if (width <= 0 || height <= 0) return;
     fbWidth = width;
     fbHeight = height;
+    if (g_headless) return;
     scr = SDL_SetVideoMode(width, height, 0, (gfx == SOFTWARE ? 0 : SDL_OPENGL) | SDL_RESIZABLE);
 }
 
@@ -235,18 +256,19 @@ void platformGetMousePos(double *xPos, double *yPos) {
 }
 
 static bool platformGetWindowFocus(void) {
-    return SDL_GetAppState() & SDL_APPINPUTFOCUS;
+    return g_headless || (SDL_GetAppState() & SDL_APPINPUTFOCUS);
 }
 
 bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) {
+    g_headless = headless;
     if (headless && gfx != SOFTWARE) {
         logError("Headless mode on SDL 1.2 requires the software renderer!\n");
         return false;
     }
 
     // Init SDL
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_JOYSTICK)) {
-        logError("Failed to initialize SDL\n");
+    if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_JOYSTICK | (headless ? 0 : SDL_INIT_VIDEO))) {
+        logError("Failed to initialize SDL: %s\n", SDL_GetError());
         return false;
     }
 
@@ -284,7 +306,7 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
         }
     }
 
-    SDL_WM_SetCaption(title, NULL);
+    if (!headless) SDL_WM_SetCaption(title, NULL);
 
     SDL_EnableKeyRepeat(0, 0);
 
@@ -341,7 +363,7 @@ void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
 void platformSwapBuffers(void) {
 #ifdef ENABLE_SW_RENDERER
     if(gfx == SOFTWARE) {
-        if (!scr)
+        if (g_headless || !scr)
             return;
         SDL_BlitSurface(nextFb, NULL, scr, NULL);
         SDL_Flip(scr);
@@ -464,6 +486,9 @@ bool platformHandleEvents(void) {
     for (int slotIdx = 0; slotIdx < MAX_GAMEPADS; slotIdx++) {
         GamepadSlot* slot = g_runner->gamepads->slots + slotIdx;
         SDL_Joystick* joy = openJoysticks[slotIdx];
+        // Keyboard recordings intentionally have no physical-gamepad state.
+        // This diagnostic option makes host and device playback comparable.
+        if (getenv("UFO50_KEYBOARD_PLAYBACK") && InputRecording_isPlaybackActive(globalInputRecording)) joy = NULL;
 
         memcpy(slot->buttonDownPrev, slot->buttonDown, sizeof(slot->buttonDown));
         memset(slot->buttonDown, 0, sizeof(slot->buttonDown));
@@ -530,6 +555,9 @@ bool platformHandleEvents(void) {
                 bool wasDown = slot->buttonDownPrev[btn];
                 if (slot->buttonDown[btn] && !wasDown) slot->buttonPressed[btn] = true;
                 if (!slot->buttonDown[btn] && wasDown) slot->buttonReleased[btn] = true;
+                if (getenv("UFO50_INPUT_TRACE") && slot->buttonDown[btn] != wasDown)
+                    logInfo("Input: frame=%d slot=%d gml_button=%d raw_button=%d down=%d\n",
+                        g_runner->frameCount, slotIdx, btn, map->button_map[btn], slot->buttonDown[btn]);
             }
             g_runner->gamepads->connectedCount++;
         } else {
