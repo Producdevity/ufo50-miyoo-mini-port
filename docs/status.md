@@ -161,3 +161,12 @@ colors pass on host, SP ARM32 and ASan/UBSan. Barbuta's seeded screenshot
 matches the previous RGBA/8-bit versions byte for byte. Vainger now enters
 `rm07_GravGuns` and completes 6,000 steps in 8.8 host seconds within the
 unchanged 24 MiB cache budget. This remains a headless compatibility result.
+
+## Collection room sweep 2026-10-11
+
+All 50 seeded host menu/room probes now exit successfully and visit their
+selected game's room. Kick Club returns to high scores after game over;
+the report now retains visited rooms instead of treating that as a launch
+failure. Each probe executes 6,000 simulation steps, uses isolated saves,
+and renders at 30 Hz with no-op headless audio. These are compatibility
+smoke checks, not completed gameplay tests or device FPS acceptance.

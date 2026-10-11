@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -65,8 +66,13 @@ def main():
             global_vars = data['globalVariables']
             row.update(room=data['room'], selected=global_vars.get('selGame'),
                        current=global_vars.get('currGame'), game_id=global_vars.get('currGameID'))
+            row['final_in_game'] = data['room']['name'] not in ['rmLibrary', 'rmTitleScreens']
+            runtime_log = (output / 'runtime.log').read_text()
+            visited = re.findall(r'Room changed: .*? -> (\w+) \(room \d+\)', runtime_log)
+            row['visited_game_rooms'] = [room for room in visited
+                                         if room not in ['rmLibrary', 'rmTitleScreens']]
             row['entered_selected_game'] = (global_vars.get('currGame') == index and
-                                            data['room']['name'] not in ['rmLibrary', 'rmTitleScreens'])
+                                            bool(row['visited_game_rooms']))
         rows.append(row)
         (args.output / 'summary.json').write_text(json.dumps(rows, indent=2) + '\n')
         print(json.dumps(row), flush=True)
