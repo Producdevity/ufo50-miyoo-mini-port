@@ -61,6 +61,19 @@ SWTexture* swrCreateTexture(const uint8_t* srcBuffer, int width, int height)
         }
         texture->indices[i] = (uint8_t)values[slot];
     }
+    texture->indexBits = texture->paletteCount <= 2 ? 1 :
+                         texture->paletteCount <= 4 ? 2 :
+                         texture->paletteCount <= 16 ? 4 : 8;
+    if (texture->indexBits < 8) {
+        size_t bytes = (count * texture->indexBits + 7) / 8;
+        uint8_t* packed = safeCalloc(bytes, 1);
+        for (size_t i = 0; i < count; i++) {
+            size_t bit = i * texture->indexBits;
+            packed[bit >> 3] |= texture->indices[i] << (bit & 7);
+        }
+        free(texture->indices);
+        texture->indices = packed;
+    }
     return texture;
 }
 

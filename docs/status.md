@@ -152,3 +152,12 @@ Race now completes its 6,000-step room smoke test in 1.0 seconds, previously
 a level-setup loop. Sprite culling now precedes atlas decoding, with flipped,
 fractional and camera-offset bounds covered by independent tests. Vainger's
 remaining visible working set still exceeds the 24 MiB atlas budget.
+
+## Packed atlas chunk 2026-10-11
+
+Small lossless palettes now use 1, 2 or 4 bits per pixel, retaining 8-bit
+indices for larger palettes. Odd-length buffers, alpha and exact converted
+colors pass on host, SP ARM32 and ASan/UBSan. Barbuta's seeded screenshot
+matches the previous RGBA/8-bit versions byte for byte. Vainger now enters
+`rm07_GravGuns` and completes 6,000 steps in 8.8 host seconds within the
+unchanged 24 MiB cache budget. This remains a headless compatibility result.

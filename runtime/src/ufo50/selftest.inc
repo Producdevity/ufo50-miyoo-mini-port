@@ -19,6 +19,7 @@ int Ufo50_runCompatibilityTests(void) {
     repeat(512, i) pixels[i] = ((i % 16) * 0x11111111u);
     SWTexture* paletted = swrCreateTexture((const uint8_t*)pixels, 32, 16);
     CHECK_TEST(paletted->indices && paletted->paletteCount == 16);
+    CHECK_TEST(paletted->indexBits == 4);
     repeat(512, i) CHECK_TEST(swrTexturePixel(paletted, i) == swrConvertPixelTexture(pixels[i]));
     SWTexture* copy = swrCopyTexture(paletted);
     repeat(512, i) CHECK_TEST(copy->buffer[i] == swrTexturePixel(paletted, i));
@@ -38,6 +39,16 @@ int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(swrSpriteOutsideView(&bounds, 92, 50, 8, 8));
     CHECK_TEST(!swrSpriteOutsideView(&bounds, 92.5f, 50, 8, 8));
     CHECK_TEST(swrSpriteOutsideView(&bounds, 100, 100, 8, 8));
+    uint32_t tiny[9] = {0, 0xffffffff, 0, 0xffffffff, 0, 0xffffffff, 0, 0xffffffff, 0};
+    SWTexture* bits = swrCreateTexture((const uint8_t*)tiny, 9, 1);
+    CHECK_TEST(bits->indexBits == 1 && swrTextureBytes(bits) == sizeof(SWTexture) + 2);
+    repeat(9, i) CHECK_TEST(swrTexturePixel(bits, i) == swrConvertPixelTexture(tiny[i]));
+    swrFreeTexture(bits);
+    tiny[2] = tiny[6] = 0x80808080;
+    bits = swrCreateTexture((const uint8_t*)tiny, 9, 1);
+    CHECK_TEST(bits->indexBits == 2 && swrTextureBytes(bits) == sizeof(SWTexture) + 3);
+    repeat(9, i) CHECK_TEST(swrTexturePixel(bits, i) == swrConvertPixelTexture(tiny[i]));
+    swrFreeTexture(bits);
     DataWin data = {0};
     data.gen8.wadVersion = 17;
     data.gen8.defaultWindowWidth = 64;
