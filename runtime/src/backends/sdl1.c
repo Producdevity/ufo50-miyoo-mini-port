@@ -21,6 +21,8 @@
 
 static Runner *g_runner;
 static bool g_headless;
+static bool g_nativeSoftware;
+static int32_t g_nativeWidth, g_nativeHeight;
 static int32_t fbWidth, fbHeight;
 static SDL_Surface* scr;
 static SDL_Joystick* openJoysticks[MAX_GAMEPADS];
@@ -239,7 +241,7 @@ bool platformGetScaledWindowSize(int32_t* outW, int32_t* outH) {
 }
 
 void platformSetWindowSize(int32_t width, int32_t height) {
-    if (width <= 0 || height <= 0) return;
+    if (width <= 0 || height <= 0 || g_nativeSoftware) return;
     fbWidth = width;
     fbHeight = height;
     if (g_headless) return;
@@ -251,8 +253,15 @@ void platformGetMousePos(double *xPos, double *yPos) {
     int mx = 0, my = 0;
     SDL_GetMouseState(&mx, &my);
 
-    *xPos = (double)mx;
-    *yPos = (double)my;
+    if (g_nativeSoftware && scr) {
+        int width = scr->w, height = width * fbHeight / fbWidth;
+        if (height > scr->h) { height = scr->h; width = height * fbWidth / fbHeight; }
+        *xPos = (double)(mx - (scr->w - width) / 2) * fbWidth / width;
+        *yPos = (double)(my - (scr->h - height) / 2) * fbHeight / height;
+    } else {
+        *xPos = (double)mx;
+        *yPos = (double)my;
+    }
 }
 
 static bool platformGetWindowFocus(void) {
@@ -261,6 +270,11 @@ static bool platformGetWindowFocus(void) {
 
 bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) {
     g_headless = headless;
+    const char* native = getenv("UFO50_NATIVE_RESOLUTION");
+    g_nativeSoftware = gfx == SOFTWARE && native &&
+        sscanf(native, "%dx%d", &g_nativeWidth, &g_nativeHeight) == 2 &&
+        g_nativeWidth > 0 && g_nativeWidth <= 4096 &&
+        g_nativeHeight > 0 && g_nativeHeight <= 4096;
     if (headless && gfx != SOFTWARE) {
         logError("Headless mode on SDL 1.2 requires the software renderer!\n");
         return false;
@@ -306,6 +320,12 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
         }
     }
 
+    if (g_nativeSoftware) {
+        fbWidth = g_nativeWidth;
+        fbHeight = g_nativeHeight;
+        logInfo("Video: native software framebuffer %dx%d, display %dx%d\n",
+            fbWidth, fbHeight, scr ? scr->w : 0, scr ? scr->h : 0);
+    }
     if (!headless) SDL_WM_SetCaption(title, NULL);
 
     SDL_EnableKeyRepeat(0, 0);
@@ -313,7 +333,9 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
     return true;
 }
 
+static void freeSoftwareSurfaces(void);
 void platformExit(void) {
+    freeSoftwareSurfaces();
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         if (openJoysticks[i]) {
             SDL_JoystickClose(openJoysticks[i]);
@@ -338,6 +360,7 @@ void platformInitFunctions(Runner *runner) {
 #ifdef ENABLE_SW_RENDERER
 
 static SDL_Surface* nextFb = NULL;
+static SDL_Surface* convertFb = NULL;
 
 void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
     if (nextFb) {
@@ -360,12 +383,44 @@ void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
 
 #endif
 
+static void freeSoftwareSurfaces(void) {
+#ifdef ENABLE_SW_RENDERER
+    if (nextFb) { SDL_FreeSurface(nextFb); nextFb = NULL; }
+    if (convertFb) { SDL_FreeSurface(convertFb); convertFb = NULL; }
+#endif
+}
+
 void platformSwapBuffers(void) {
 #ifdef ENABLE_SW_RENDERER
     if(gfx == SOFTWARE) {
         if (g_headless || !scr)
             return;
-        SDL_BlitSurface(nextFb, NULL, scr, NULL);
+        if (!nextFb) return;
+        if (g_nativeSoftware) {
+            SDL_Surface* source = nextFb;
+            // SDL_SoftStretch requires matching formats; convert once per frame
+            // only when the display's pixel layout differs from the renderer.
+            if (nextFb->format->BitsPerPixel != scr->format->BitsPerPixel ||
+                nextFb->format->Rmask != scr->format->Rmask ||
+                nextFb->format->Gmask != scr->format->Gmask ||
+                nextFb->format->Bmask != scr->format->Bmask) {
+                if (!convertFb) convertFb = SDL_CreateRGBSurface(0, nextFb->w, nextFb->h,
+                    scr->format->BitsPerPixel, scr->format->Rmask, scr->format->Gmask,
+                    scr->format->Bmask, 0);
+                if (!convertFb) return;
+                SDL_BlitSurface(nextFb, NULL, convertFb, NULL);
+                source = convertFb;
+            }
+            int width = scr->w, height = width * source->h / source->w;
+            if (height > scr->h) { height = scr->h; width = height * source->w / source->h; }
+            SDL_Rect dest = {(Sint16)((scr->w - width) / 2), (Sint16)((scr->h - height) / 2),
+                             (Uint16)width, (Uint16)height};
+            SDL_FillRect(scr, NULL, 0);
+            if (SDL_SoftStretch(source, NULL, scr, &dest) < 0)
+                logError("Video: native framebuffer scaling failed: %s\n", SDL_GetError());
+        } else {
+            SDL_BlitSurface(nextFb, NULL, scr, NULL);
+        }
         SDL_Flip(scr);
     }
 #endif
@@ -608,6 +663,7 @@ bool platformHandleEvents(void) {
                 }
                 break;
             case SDL_VIDEORESIZE:
+                if (g_headless || g_nativeSoftware) break;
                 fbWidth = e.resize.w;
                 fbHeight = e.resize.h;
                 scr = SDL_SetVideoMode(fbWidth, fbHeight, 0, (gfx == SOFTWARE ? 0 : SDL_OPENGL) | SDL_RESIZABLE);

@@ -84,3 +84,14 @@ the codec speaker sink. This verifies digital output, not a physical listening
 test. Across 63 gameplay intervals, presented FPS has median 29.72, weighted
 mean 29.40, and minimum 25.95. The final screenshot/dump interval is excluded.
 The current 640x480 software draw path needs more performance headroom.
+
+## Native presentation chunk 2026-10-11
+
+The SDL1 software backend can retain a 384x216 logical framebuffer while
+presenting a nearest-neighbor, aspect-preserving 640x360 image centered on
+the 640x480 panel. Desktop resize calls cannot inflate this optional native
+framebuffer. Pixel format conversion and pointer coordinates follow the
+actual display surface. The SP frontend launch renders the complete UI and
+Barbuta scene in this mode, with nonzero real audio output. Frame telemetry
+and screenshots are retained outside Git. This is SP evidence; Mini hardware
+performance and collection-wide gameplay remain unverified.
