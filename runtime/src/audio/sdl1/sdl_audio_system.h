@@ -17,6 +17,8 @@
 typedef struct {
     MaAudioSystem ma;       // first member - pointer-compatible with AudioSystem*
     SDL_AudioSpec sdlSpec;  // format the callback actually receives
+    uint64_t callbacks, mixedFrames, nonzeroSamples;
+    float peak;
     bool audioOpen;
     volatile bool ready;    // false until the engine is live; callback outputs silence
 } SdlAudioSystem;

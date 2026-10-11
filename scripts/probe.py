@@ -5,10 +5,11 @@ from pathlib import Path
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('runner',type=Path);p.add_argument('game',type=Path);p.add_argument('output',type=Path)
 p.add_argument('--frames',type=int,default=180);p.add_argument('--timeout',type=int,default=30)
+p.add_argument('--seed',type=int,default=1234);p.add_argument('--render-fps',type=int,default=0)
 p.add_argument('--inputs',type=Path);p.add_argument('--headless',action='store_true');p.add_argument('--unknown-functions',action='store_true')
 a=p.parse_args();a.output.mkdir(parents=True,exist_ok=False);out=a.output.resolve();(out/'saves').mkdir()
-env=dict(os.environ,SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',ASAN_OPTIONS='detect_leaks=0',UFO50_SCREENSHOT=str(out/'frame.png'),UFO50_SCREENSHOT_FRAME=str(a.frames-1))
-cmd=[str(a.runner.resolve()),str(a.game.resolve()),'--renderer','software','--lazy-rooms','--lazy-textures','--lazy-audio','--load-type','load-per-chunk','--window-size','640x480','--save-folder',str(out/'saves')]
+env=dict(os.environ,UFO50_RENDER_FPS=str(a.render_fps),UFO50_PERF_LOG='1',SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',ASAN_OPTIONS='detect_leaks=0',UFO50_SCREENSHOT=str(out/'frame.png'),UFO50_SCREENSHOT_FRAME=str(a.frames-1))
+cmd=[str(a.runner.resolve()),str(a.game.resolve()),'--renderer','software','--lazy-rooms','--lazy-textures','--lazy-audio','--load-type','load-per-chunk','--window-size','640x480','--save-folder',str(out/'saves'),'--seed',str(a.seed)]
 if a.unknown_functions:cmd+=['--print-unknown-functions']
 else:cmd+=['--exit-at-frame',str(a.frames),'--dump-frame-json',str(a.frames-1),'--dump-frame-json-file',str(out/'state.json')]
 if a.headless:cmd+=['--headless']

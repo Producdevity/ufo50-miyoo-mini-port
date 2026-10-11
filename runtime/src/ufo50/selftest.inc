@@ -1,8 +1,17 @@
 /* Game-data-free regression tests for UFO 50 compatibility code. */
 #include "noop_audio_system.h"
 #include "noop_file_system.h"
+#include "ufo50/frame_clock.h"
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 int Ufo50_runCompatibilityTests(void) {
+    Ufo50FrameClock clock = {0};
+    int draws = 0;
+    repeat(600, i) draws += Ufo50FrameClock_draw(&clock, 30, 60);
+    CHECK_TEST(draws == 300);
+    clock.credit = 0; draws = 0;
+    repeat(500, i) draws += Ufo50FrameClock_draw(&clock, 30, 50);
+    CHECK_TEST(draws == 300);
+    CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 30));
     DataWin data = {0};
     data.gen8.wadVersion = 17;
     data.gen8.defaultWindowWidth = 64;

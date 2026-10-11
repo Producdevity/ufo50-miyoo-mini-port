@@ -3,6 +3,7 @@
 #include "data_win.h"
 #include "vm.h"
 #include "loop.h"
+#include "ufo50/frame_clock.h"
 
 #include "platformdefs.h"
 #include "stdio_compat.h"
@@ -962,6 +963,13 @@ int loop(CommandLineArgs args, const char *argv0) {
         uint64_t lastFrameTime = nowNanos();
         uint64_t lastFrameStartTime = lastFrameTime; // for delta_time
         bool shouldWindowClose = false;
+        const char* renderEnv = getenv("UFO50_RENDER_FPS");
+        double renderLimit = renderEnv ? atof(renderEnv) : 0;
+        if (!isfinite(renderLimit) || renderLimit < 1 || renderLimit > 120) renderLimit = 0;
+        Ufo50FrameClock renderClock = {0};
+        bool perfEnabled = getenv("UFO50_PERF_LOG") != nullptr;
+        uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
+        uint64_t perfWork = 0, perfDrawWork = 0;
         while (true) {
             if (runner->shouldExit || shouldWindowClose) {
                 actuallyShuttingDown = true;
@@ -1171,6 +1179,12 @@ int loop(CommandLineArgs args, const char *argv0) {
                     free(json);
                 }
 
+                double logicHz = runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed;
+                bool drawThisStep = Ufo50FrameClock_draw(&renderClock, renderLimit, logicHz);
+                const char* shotFrame = getenv("UFO50_SCREENSHOT_FRAME");
+                if (shotFrame && atoi(shotFrame) == runner->frameCount) drawThisStep = true;
+                uint64_t drawStarted = nowNanos();
+                if (drawThisStep) {
                 // Clear the default framebuffer (window background) to black
 #ifdef ENABLE_SW_RENDERER
                 if (gfx == SOFTWARE)
@@ -1270,6 +1284,18 @@ int loop(CommandLineArgs args, const char *argv0) {
                 }
 #endif
 
+                    perfDraws++;
+                    perfDrawWork += nowNanos() - drawStarted;
+                    // Only present when there isn't a Draw-event room change.
+                    if (runner->pendingRoom == -1) {
+                        platformSwapBuffers();
+                        perfPresents++;
+                    }
+                }
+                Runner_handlePendingRoomChange(runner);
+                perfSteps++;
+                perfWork += nowNanos() - frameStartNow;
+
                 if (args.exitAtFrame >= 0 && runner->frameCount >= args.exitAtFrame) {
                     logInfo("Exiting at frame %d (--exit-at-frame)\n", runner->frameCount);
                     shouldWindowClose = true;
@@ -1280,10 +1306,6 @@ int loop(CommandLineArgs args, const char *argv0) {
                     logInfo("Frame %d (End, %.2f ms)\n", runner->frameCount, frameElapsedMs);
                 }
 
-                // Only swap when there isn't a room change to match the original runner.
-                if (runner->pendingRoom == -1)
-                    platformSwapBuffers();
-                Runner_handlePendingRoomChange(runner);
             }
 
             if (RunnerKeyboard_checkPressed(runner->keyboard, VK_BACKSPACE)) {
@@ -1308,6 +1330,16 @@ int loop(CommandLineArgs args, const char *argv0) {
                 platformSleepUntil(nextFrameTime);
             }
             lastFrameTime = nowNanos();
+            if (perfEnabled && lastFrameTime - perfStart >= 1000000000ull) {
+                double seconds = (lastFrameTime - perfStart) / 1000000000.0;
+                logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f\n",
+                    runner->frameCount, seconds, (unsigned long long)perfSteps,
+                    (unsigned long long)perfDraws, (unsigned long long)perfPresents,
+                    perfSteps ? perfWork / 1000000.0 / perfSteps : 0,
+                    perfDraws ? perfDrawWork / 1000000.0 / perfDraws : 0);
+                perfStart = lastFrameTime; perfSteps = perfDraws = perfPresents = 0;
+                perfWork = perfDrawWork = 0;
+            }
         }
 
         saveInputRecording();

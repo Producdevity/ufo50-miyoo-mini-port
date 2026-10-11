@@ -25,7 +25,7 @@ A stack sample placed 98% of the busy host thread in `Runner_draw`'s repeated
 search through runtime tile elements. Rendering now traverses those elements
 once, retaining their order, visibility and alpha. The fresh 8,000-frame owned
 game probe exits successfully in 1.60 seconds on the host, reaches
-`rm40_Traps` (Barbuta), and produces a gameplay frame. This is host/headless
+`rm40_Traps` (Barbuta), and produces its starting-room frame. This is host/headless
 compatibility evidence; audio, physical controls and device FPS are unproven.
 
 ## Audio chunk 2026-10-11
@@ -53,3 +53,18 @@ same scene as the host. Median execution time is 14.14 ms, p95 16.55 ms. This
 background/headless run has no audio or physical presentation and is not a
 30 FPS acceptance result. Sanitized compatibility and mixer tests also pass
 with AddressSanitizer and UBSan (macOS does not support LeakSanitizer).
+
+## Rendering cadence chunk 2026-10-11
+
+The optional `UFO50_RENDER_FPS=30` scheduler retains 60 Hz simulation and
+executes the draw pass at 30 Hz. Scheduler regressions pass on host and SP
+ARM32, including a non-divisor rate. The same seeded 8,000-step host input
+probe reaches the same room with and without the cap. This is a cadence and
+compatibility check, not a measured hardware FPS result. SDL1 output now
+reports callback frames, nonzero samples and peak amplitude to distinguish
+mixer output from an audible-speaker check.
+
+The development entry has launched through the actual muOS Applications
+frontend and returned after its bounded test. Rendering and SDL audio
+initialization are confirmed; screen sizing, application-visible movement,
+nonzero game audio and sustained frame pacing remain under investigation.

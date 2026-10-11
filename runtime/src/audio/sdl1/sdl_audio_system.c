@@ -23,6 +23,7 @@ static void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
         return;
     }
 
+    sa->callbacks++;
     int channels = sa->sdlSpec.channels > 0 ? sa->sdlSpec.channels : 2;
     int16_t* out = (int16_t*) stream;
     int framesLeft = len / (int) (channels * sizeof(int16_t));
@@ -32,6 +33,8 @@ static void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
 
         ma_uint64 framesRead = 0;
         ma_engine_read_pcm_frames(&sa->ma.engine, sdlMixScratch, (ma_uint64) chunk, &framesRead);
+
+        sa->mixedFrames += framesRead;
 
         // Zero-fill any tail miniaudio didn't fill (silence on underrun)
         if ((int) framesRead < chunk) {
@@ -44,6 +47,9 @@ static void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
             if      (s >  1.0f) s =  1.0f;
             else if (s < -1.0f) s = -1.0f;
             out[i] = (int16_t) (s * 32767.0f);
+            if (out[i]) sa->nonzeroSamples++;
+            float magnitude = fabsf(s);
+            if (magnitude > sa->peak) sa->peak = magnitude;
         }
 
         out += chunk * channels;
@@ -141,6 +147,10 @@ static void sdlDestroy(AudioSystem* audio) {
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         sa->audioOpen = false;
     }
+
+    logInfo("Audio output: callbacks=%llu frames=%llu nonzero_samples=%llu peak=%.6f\n",
+        (unsigned long long)sa->callbacks, (unsigned long long)sa->mixedFrames,
+        (unsigned long long)sa->nonzeroSamples, (double)sa->peak);
 
     // Delegate the rest of teardown (instances, streams, audio groups,
     // ma_engine_uninit) to the shared miniaudio destroy. Its trailing free(ma)
