@@ -232,3 +232,22 @@ The native ARM32 `--input-selftest` passes on the SP loader. This verifies the
 translation, not physical Mini hardware. Sources:
 https://github.com/shauninman/MinUI/blob/main/workspace/miyoomini/platform/platform.h
 and https://onionui.github.io/docs/ports .
+
+### Release build and package gates
+
+Disabling VM tracing, GML profiling, and opcode profiling removes diagnostic
+checks from release builds. Seeded Vainger, Mini & Max and Cyber Owls host
+probes pass; Vainger's screenshot is byte-identical. Vainger host probe time
+falls from 3.50 to 2.66 seconds. Its SP sampled later scene improves from
+24.523 FPS / 49.077 simulation Hz to 27.985 FPS / 56.005 Hz over 28.408 seconds;
+this still misses 30 FPS. Audio-enabled device runs complete normally.
+
+Cross-builds now record source revision/dirty state, binary SHA256, SDL reference
+hash and header revision, compiler versions, diagnostics settings, and ELF
+metadata. Both binaries are little-endian ARM32 EABI5 hard-float with the
+`/lib/ld-linux-armhf.so.3` interpreter, no RPATH/RUNPATH, and a highest required
+glibc symbol version of 2.17. The real Miyoo SDK libc is 2.28. Packages require
+clean matching source/build records and include the exact committed source.
+Six synthetic ELF cases cover target acceptance and rejection of wrong
+architecture, soft float, newer glibc, embedded search paths, and truncation;
+all 14 Python checks pass. A dirty worktree is rejected before packaging.
