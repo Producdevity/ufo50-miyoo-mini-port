@@ -550,6 +550,7 @@ static void parseCommandLineArgs(CommandLineArgs* args, int argc, char* argv[]) 
 
 int main(int argc, char* argv[]) {
     setbuf(stderr, NULL);
+    setvbuf(stdout, NULL, _IOLBF, 0);
 
 #ifdef ENABLE_SW_RENDERER
     if (argc == 2 && strcmp(argv[1], "--compat-selftest") == 0)

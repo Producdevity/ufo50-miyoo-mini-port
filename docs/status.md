@@ -18,3 +18,12 @@ pass. Collection/file API backports are pinned in `upstreams.lock.json`.
 The title probe exits cleanly. The 8,000-frame game-selection probe still times
 out after TXTR page 90 is loaded; gameplay is not verified. These API checks
 establish behavior of individual functions, not full game compatibility.
+
+## Tile traversal chunk 2026-10-11
+
+A stack sample placed 98% of the busy host thread in `Runner_draw`'s repeated
+search through runtime tile elements. Rendering now traverses those elements
+once, retaining their order, visibility and alpha. The fresh 8,000-frame owned
+game probe exits successfully in 1.60 seconds on the host, reaches
+`rm40_Traps` (Barbuta), and produces a gameplay frame. This is host/headless
+compatibility evidence; audio, physical controls and device FPS are unproven.

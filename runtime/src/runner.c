@@ -1015,21 +1015,15 @@ void Runner_draw(Runner* runner) {
             RoomLayer* parsedLayer = Runner_findRoomLayerById(runner->currentRoom, (int32_t) runtimeLayer->id);
             if (parsedLayer == nullptr) continue;
             if (parsedLayer->type == RoomLayerType_Assets) {
-                RoomLayerAssetsData* data = parsedLayer->assetsData;
+                // Runtime elements retain parsed tile order and visibility. Traversing
+                // them directly avoids a full element search for every tile (O(n^2)).
                 size_t tileElementCount = arrlenu(runtimeLayer->elements);
-                repeat(data->legacyTileCount, j) {
+                repeat(tileElementCount, j) {
                     if (runner->renderer != nullptr) {
-                        RoomTile* tile = &data->legacyTiles[j];
-                        // Find the matching RuntimeLayerElement so we can honor per-element visibility
-                        RuntimeLayerElement* tileEl = nullptr;
-                        repeat(tileElementCount, k) {
-                            RuntimeLayerElement* candidate = &runtimeLayer->elements[k];
-                            if (candidate->type == RuntimeLayerElementType_Tile && candidate->tileElement == tile) {
-                                tileEl = candidate;
-                                break;
-                            }
-                        }
-                        if (tileEl != nullptr && !tileEl->visible) continue;
+                        RuntimeLayerElement* tileEl = &runtimeLayer->elements[j];
+                        if (tileEl->type != RuntimeLayerElementType_Tile || !tileEl->tileElement || !tileEl->visible) continue;
+                        RoomTile* tile = tileEl->tileElement;
+
                         // Check if this tile's layer is hidden via tile_layer_hide()
                         ptrdiff_t layerIdx = hmgeti(runner->tileLayerMap, tile->tileDepth);
                         if (layerIdx >= 0 && !runner->tileLayerMap[layerIdx].value.visible) continue;
@@ -1066,7 +1060,7 @@ void Runner_draw(Runner* runner) {
 #endif
 
                         RoomTile runtimeTile = *tile;
-                        if (tileEl != nullptr) runtimeTile.alpha = tileEl->alpha;
+                        runtimeTile.alpha = tileEl->alpha;
                         Renderer_drawTile(runner->renderer, &runtimeTile, offsetX, offsetY);
                     }
                 }
