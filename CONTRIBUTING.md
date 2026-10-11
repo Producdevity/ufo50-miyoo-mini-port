@@ -129,6 +129,6 @@ scripts/zig-cc.sh -O2 -I.local/deps/include -Iruntime/src/backends \
 ```
 
 Run the executable with the Mini SDK SDL library available on the ARM32 test
-device. It compares 48 complete 16-bit and 32-bit images against SDL's full-clear
+device. It compares 54 complete 16-bit and 32-bit images against SDL's full-clear
 scaling path, including uneven borders and stale pixels from a previous frame.
 Performance logs report `present_ms` separately from game drawing.

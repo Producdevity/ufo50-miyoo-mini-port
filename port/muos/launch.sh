@@ -41,6 +41,9 @@ export PIPEWIRE_RUNTIME_DIR="/run"
 export UFO50_RENDER_FPS=30
 export UFO50_TEXTURE_CACHE_MIB="${UFO50_TEXTURE_CACHE_MIB:-24}"
 export UFO50_NATIVE_RESOLUTION=384x216
+# SDL12-compat scales this logical display to the SP panel in its renderer.
+export SDL12COMPAT_SCALE_METHOD=nearest
+export SDL12COMPAT_SYNC_TO_VBLANK=0
 export UFO50_PERF_LOG=1
 save="$root/saves"
 set --
@@ -71,7 +74,7 @@ cd "$root/gamefiles"
 printf '%s\n' "$run" > "$root/last-run"
 status=0
 "$@" --renderer software --lazy-rooms --lazy-textures --lazy-audio \
-    --load-type load-per-chunk --window-size 640x480 --save-folder "$save" \
+    --load-type load-per-chunk --window-size 384x216 --save-folder "$save" \
     > "$run/runtime.log" 2>&1 &
 game_pid=$!
 wait "$game_pid" || status=$?

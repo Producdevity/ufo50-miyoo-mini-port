@@ -499,3 +499,14 @@ centered samples ([SDL12-compat](https://github.com/libsdl-org/sdl12-compat/blob
 The 48 native pixel comparisons pass independently with each library, including
 cache rebuilds between different source sizes and display rectangles. This
 changes presentation only; game surfaces and Draw events use the same renderer.
+
+### Use the native logical display on muOS
+
+The SP launcher requests a 384×216 SDL1 logical display. Its installed
+SDL12-compat renderer scales this to the 640×480 panel with nearest sampling
+and aspect-preserving bars. This avoids converting and uploading a full
+640×480 surface in the compatibility layer. Display synchronization is disabled
+in that layer; the runner retains its own 60 Hz logic / 30 Hz presentation clock.
+The Mini launcher retains its hardware display mode and software scaler. The
+standalone pixel oracle now includes equal-width copies: 54 cases pass with
+each SDL library.

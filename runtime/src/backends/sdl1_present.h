@@ -64,6 +64,7 @@ static inline int Ufo50_stretchVideo(Ufo50VideoScaler* scaler, SDL_Surface* sour
         Uint8* output = (Uint8*)screen->pixels + (image->y + y) * screen->pitch + image->x * bytes;
         const Uint8* input = (const Uint8*)source->pixels + row * source->pitch;
         if (row == previousRow) memcpy(output, previousOutput, image->w * bytes);
+        else if (source->w == image->w) memcpy(output, input, image->w * bytes);
         else if (bytes == 4) {
             Uint32* out = (Uint32*)output;
             const Uint32* in = (const Uint32*)input;
