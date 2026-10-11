@@ -13759,6 +13759,7 @@ static RValue builtin_layer_create(VMContext* ctx, RValue* args, int32_t argCoun
     runtimeLayer.beginScript = -1;
     runtimeLayer.endScript = -1;
     arrput(runner->runtimeLayers, runtimeLayer);
+    Runner_markLayerElementsDirty(runner);
     runner->drawableListStructureDirty = true;
     return RValue_makeReal((GMLReal) id);
 }
@@ -13784,6 +13785,7 @@ static RValue builtin_layer_destroy(VMContext* ctx, RValue* args, MAYBE_UNUSED i
 
         Runner_freeRuntimeLayer(&runner->runtimeLayers[i]);
         arrdel(runner->runtimeLayers, i);
+        Runner_markLayerElementsDirty(runner);
 
         runner->drawableListStructureDirty = true;
         break;
@@ -13845,6 +13847,7 @@ static RValue builtin_layer_background_create(VMContext* ctx, RValue* args, MAYB
     el.blend = 0xFFFFFFu;
     el.backgroundElement = bg;
     arrput(runtimeLayer->elements, el);
+    Runner_markLayerElementsDirty(runner);
     return RValue_makeReal((GMLReal) el.id);
 }
 
@@ -14215,13 +14218,16 @@ static RValue builtin_layer_element_move(VMContext* ctx, RValue* args, MAYBE_UNU
     RuntimeLayer* rl = Runner_findRuntimeLayerById(runner, layerId);
     RuntimeLayer* oldRl = nullptr;
     RuntimeLayerElement* el = Runner_findLayerElementById(runner, elementId, &oldRl);
+    if (!rl || !oldRl || !el || rl == oldRl) return RValue_makeUndefined();
 
     arrput(rl->elements, *el);
+    Runner_markLayerElementsDirty(runner);
 
     size_t count = arrlenu(oldRl->elements);
     repeat(count, i) {
         if (&oldRl->elements[i] == el) {
             arrdel(oldRl->elements, i);
+            Runner_markLayerElementsDirty(runner);
             break;
         }
     }
@@ -14420,6 +14426,7 @@ static RValue builtin_layer_sprite_destroy(VMContext* ctx, RValue* args, MAYBE_U
     repeat(count, i) {
         if (&owningLayer->elements[i] == el) {
             arrdel(owningLayer->elements, i);
+            Runner_markLayerElementsDirty(runner);
             break;
         }
     }
@@ -14446,6 +14453,7 @@ static RValue builtin_layer_background_destroy(VMContext* ctx, RValue* args, MAY
     repeat(count, i) {
         if (&owningLayer->elements[i] == el) {
             arrdel(owningLayer->elements, i);
+            Runner_markLayerElementsDirty(runner);
             break;
         }
     }

@@ -267,6 +267,9 @@ typedef struct {
     TileLayerState value;
 } TileLayerMapEntry;
 
+typedef struct { int32_t layer, element; } LayerElementLocation;
+typedef struct { int32_t key; LayerElementLocation value; } LayerElementIndexEntry;
+
 // A single entry in the depth-sorted draw list. Cached on Runner and rebuilt lazily based on Runner.drawableListStructureDirty / drawableListSortDirty.
 // Filtering on instance->active/visible and runtimeLayer->visible happens at draw time so toggling those does not require invalidating the cache.
 typedef enum { DRAWABLE_TILE, DRAWABLE_INSTANCE, DRAWABLE_LAYER } DrawableType;
@@ -525,6 +528,9 @@ struct Runner {
     TileLayerMapEntry* tileLayerMap; // stb_ds hashmap: depth -> tile layer state
     RuntimeLayer* runtimeLayers; // stb_ds array, index-parallel to currentRoom->layers for parsed entries; dynamic entries appended
     uint32_t nextLayerId;        // counter for IDs of layers/elements created at runtime
+    LayerElementIndexEntry* layerElementIndex;
+    bool layerElementIndexDirty; // cached indexes survive array reallocations; rebuild after structural edits
+
     SavedRoomState* savedRoomStates; // array of size dataWin->room.count, for persistent room support
     int32_t viewCurrent; // index of the view currently being drawn (for view_current)
     bool viewsEnabled;   // runtime-mutable global view system toggle (view_enabled); seeded from room->flags & 1 on room enter
@@ -733,6 +739,7 @@ void Runner_free(Runner* runner);
 RuntimeLayer* Runner_findRuntimeLayerByName(Runner* runner, char* name);
 RuntimeLayer* Runner_findRuntimeLayerById(Runner* runner, int32_t id);
 RoomLayer* Runner_findRoomLayerById(Room* room, int32_t id);
+void Runner_markLayerElementsDirty(Runner* runner);
 RuntimeLayerElement* Runner_findLayerElementById(Runner* runner, int32_t elementId, RuntimeLayer** outLayer);
 void Runner_addInstanceLayerElement(Runner* runner, int32_t layerId, int32_t instanceId);
 void Runner_removeInstanceLayerElement(Runner* runner, int32_t instanceId);

@@ -341,6 +341,7 @@ static RValue builtin_layer_tile_create(VMContext* ctx, RValue* args, MAYBE_UNUS
     el.tileElement = tile;
     el.tileElementOwned = true;
     arrput(runtimeLayer->elements, el);
+    Runner_markLayerElementsDirty(runner);
     runner->drawableListStructureDirty = true;
     return RValue_makeReal((GMLReal) el.id);
 }
@@ -361,6 +362,7 @@ static RValue builtin_layer_tile_destroy(VMContext* ctx, RValue* args, MAYBE_UNU
     repeat(count, i) {
         if (&owningLayer->elements[i] == el) {
             arrdel(owningLayer->elements, i);
+            Runner_markLayerElementsDirty(runner);
             break;
         }
     }

@@ -183,6 +183,23 @@ int Ufo50_runCompatibilityTests(void) {
     builtin_layer_tile_destroy(ctx, &tileId, 1);
     CHECK_TEST(!Runner_findLayerElementById(runner, RValue_toInt32(tileId), nullptr));
     builtin_layer_tile_destroy(ctx, &tileId, 1); // deleting a missing tile is harmless
+    RValue indexedTiles[128];
+    repeat(128, i) indexedTiles[i] = builtin_layer_tile_create(ctx, tileArgs, 8);
+    repeat(128, i) CHECK_TEST(Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[i]), nullptr));
+    builtin_layer_tile_destroy(ctx, &indexedTiles[64], 1);
+    CHECK_TEST(!Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[64]), nullptr));
+    CHECK_TEST(Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[65]), nullptr));
+    RValue newLayerArgs[] = {RValue_makeReal(-10), RValue_makeString("indexed")};
+    RValue newLayer = builtin_layer_create(ctx, newLayerArgs, 2);
+    RValue moveArgs[] = {indexedTiles[65], newLayer};
+    builtin_layer_element_move(ctx, moveArgs, 2);
+    builtin_layer_element_move(ctx, moveArgs, 2); // same-layer move is harmless
+    RuntimeLayer* owner = nullptr;
+    CHECK_TEST(Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[65]), &owner));
+    CHECK_TEST(owner && (int32_t)owner->id == RValue_toInt32(newLayer));
+    builtin_layer_destroy(ctx, &newLayer, 1);
+    CHECK_TEST(!Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[65]), nullptr));
+    CHECK_TEST(Runner_findLayerElementById(runner, RValue_toInt32(indexedTiles[66]), nullptr));
     builtin_layer_tile_create(ctx, tileArgs, 8); // runner teardown owns this tile
     SWRenderer* swr = (SWRenderer*)renderer;
     swr->textures[swr->textureCount] = swrCreateTexture(nullptr, 8, 8);

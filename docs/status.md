@@ -204,3 +204,16 @@ valid and out-of-range indexes across those holes. Host sanitizer selftests
 and the audio-enabled 4500-step Cyber Owls replay pass. The repaired SP Ports
 replay also reaches its bounded completion and returns to the frontend. This
 fix demonstrates why headless/no-op-audio room smoke tests alone are insufficient.
+
+### Layer-element lookup index
+
+A five-second host sample attributed 336 of 420 main-thread samples to linear
+layer-element lookups from Vainger's type/visibility queries. The runner now
+indexes element IDs to array positions, rebuilding after creation, deletion,
+movement, room transfer, or layer destruction. It stores positions rather than
+pointers so array reallocations are safe. Regression tests exercise 128 tiles,
+shifted indexes after deletion, movement, same-layer movement, and destruction.
+Host ASan/UBSan selftests pass. The seeded 6000-step Vainger screenshot is
+byte-identical; host elapsed time falls from 12.84 to 3.50 seconds. The SP's
+sampled later scene improves from roughly 3 to 24 presented FPS, still below
+the requested 30. Mini & Max and Cyber Owls host room probes also pass.

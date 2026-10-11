@@ -9,6 +9,7 @@ static void noopInit(AudioSystem* audio, DataWin* dataWin, MAYBE_UNUSED FileSyst
 }
 
 static void noopDestroy(AudioSystem* audio) {
+    arrfree(audio->audioGroups);
     free(audio);
 }
 

@@ -1516,7 +1516,9 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
 
         // Restore runtime layers
         freeRuntimeLayersArray(&runner->runtimeLayers);
+        Runner_markLayerElementsDirty(runner);
         runner->runtimeLayers = savedState->runtimeLayers;
+        Runner_markLayerElementsDirty(runner);
         savedState->runtimeLayers = nullptr;
 
         Instance** carriedPersistent = takePersistentInstances(runner);
@@ -1556,6 +1558,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
     // Populate runtime layers from parsed room layers (GMS2+ only; empty for GMS1.x).
     // Dynamic layers created via layer_create are appended to this array later.
     freeRuntimeLayersArray(&runner->runtimeLayers);
+    Runner_markLayerElementsDirty(runner);
     uint32_t maxLayerId = 0;
     {
     repeat(room->layerCount, i) {
@@ -1572,6 +1575,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
         runtimeLayer.beginScript = -1;
         runtimeLayer.endScript = -1;
         arrput(runner->runtimeLayers, runtimeLayer);
+        Runner_markLayerElementsDirty(runner);
         if (layerSource->id > maxLayerId) maxLayerId = layerSource->id;
     }
     }
@@ -1605,6 +1609,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
             el.blend = bg->blend;
             el.backgroundElement = bg;
             arrput(runner->runtimeLayers[i].elements, el);
+            Runner_markLayerElementsDirty(runner);
             continue;
         }
         if (layerSource->type == RoomLayerType_Tiles && layerSource->tilesData != nullptr) {
@@ -1616,6 +1621,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
             el.blend = 0xFFFFFFu;
             el.tilemapData = layerSource->tilesData;
             arrput(runner->runtimeLayers[i].elements, el);
+            Runner_markLayerElementsDirty(runner);
             continue;
         }
         if (layerSource->type != RoomLayerType_Assets || layerSource->assetsData == nullptr) continue;
@@ -1643,6 +1649,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
             el.blend = spriteElement->color & 0xFFFFFFu;
             el.spriteElement = spriteElement;
             arrput(runtimeLayer->elements, el);
+            Runner_markLayerElementsDirty(runner);
         }
         // Expose legacy tiles as RuntimeLayerElements so GML scripts can find them via layer_get_all_elements and toggle them via layer_tile_visible
         {
@@ -1658,6 +1665,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
             el.spriteElement = nullptr;
             el.tileElement = tile;
             arrput(runtimeLayer->elements, el);
+            Runner_markLayerElementsDirty(runner);
         }
         }
     }
@@ -1727,6 +1735,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
                 runtimeLayer.beginScript = -1;
                 runtimeLayer.endScript = -1;
                 arrput(runner->runtimeLayers, runtimeLayer);
+                Runner_markLayerElementsDirty(runner);
                 newLayerId = (int32_t) runtimeLayer.id;
                 newLayerDepth = runtimeLayer.depth;
             }
@@ -1976,6 +1985,8 @@ static void cleanupState(Runner* runner) {
     hmfree(runner->tileLayerMap);
     runner->tileLayerMap = nullptr;
     freeRuntimeLayersArray(&runner->runtimeLayers);
+    hmfree(runner->layerElementIndex);
+    runner->layerElementIndexDirty = true;
     shfree(runner->disabledObjects);
     runner->disabledObjects = nullptr;
 
@@ -2520,21 +2531,35 @@ RoomLayer* Runner_findRoomLayerById(Room* room, int32_t id) {
     return nullptr;
 }
 
-RuntimeLayerElement* Runner_findLayerElementById(Runner* runner, int32_t elementId, RuntimeLayer** outLayer) {
-    size_t layerCount = arrlenu(runner->runtimeLayers);
-    repeat(layerCount, i) {
-        RuntimeLayer* runtimeLayer = &runner->runtimeLayers[i];
-        size_t elementCount = arrlenu(runtimeLayer->elements);
-        repeat(elementCount, j) {
-            if ((int32_t) runtimeLayer->elements[j].id == elementId) {
-                if (outLayer != nullptr)
-                    *outLayer = runtimeLayer;
+void Runner_markLayerElementsDirty(Runner* runner) {
+    runner->layerElementIndexDirty = true;
+}
 
-                return &runtimeLayer->elements[j];
+RuntimeLayerElement* Runner_findLayerElementById(Runner* runner, int32_t elementId, RuntimeLayer** outLayer) {
+    if (runner->layerElementIndexDirty) {
+        hmfree(runner->layerElementIndex);
+        size_t layerCount = arrlenu(runner->runtimeLayers);
+        repeat(layerCount, i) {
+            RuntimeLayer* layer = &runner->runtimeLayers[i];
+            size_t count = arrlenu(layer->elements);
+            repeat(count, j) {
+                LayerElementIndexEntry entry = {0};
+                entry.key = (int32_t)layer->elements[j].id;
+                entry.value.layer = (int32_t)i;
+                entry.value.element = (int32_t)j;
+                hmputs(runner->layerElementIndex, entry);
             }
         }
+        runner->layerElementIndexDirty = false;
     }
-    if (outLayer != nullptr) *outLayer = nullptr;
+    ptrdiff_t index = hmgeti(runner->layerElementIndex, elementId);
+    if (index >= 0) {
+        LayerElementLocation location = runner->layerElementIndex[index].value;
+        RuntimeLayer* layer = &runner->runtimeLayers[location.layer];
+        if (outLayer) *outLayer = layer;
+        return &layer->elements[location.element];
+    }
+    if (outLayer) *outLayer = nullptr;
     return nullptr;
 }
 
@@ -2553,6 +2578,7 @@ void Runner_addInstanceLayerElement(Runner* runner, int32_t layerId, int32_t ins
     el.blend = 0xFFFFFF;
     el.instanceId = instanceId;
     arrput(runtimeLayer->elements, el);
+    Runner_markLayerElementsDirty(runner);
 }
 
 void Runner_removeInstanceLayerElement(Runner* runner, int32_t instanceId) {
@@ -2564,6 +2590,7 @@ void Runner_removeInstanceLayerElement(Runner* runner, int32_t instanceId) {
             RuntimeLayerElement* el = &runtimeLayer->elements[j];
             if (el->type == RuntimeLayerElementType_Instance && el->instanceId == instanceId) {
                 arrdel(runtimeLayer->elements, j);
+                Runner_markLayerElementsDirty(runner);
                 return;
             }
         }
@@ -3589,6 +3616,7 @@ static void persistRoomState(Runner* runner, int32_t roomIndex) {
     // Transfer runtime layer ownership to saved state
     state->runtimeLayers = runner->runtimeLayers;
     runner->runtimeLayers = nullptr;
+    Runner_markLayerElementsDirty(runner);
 
     state->initialized = true;
 }
