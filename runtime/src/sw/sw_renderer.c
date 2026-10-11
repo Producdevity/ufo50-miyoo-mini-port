@@ -230,10 +230,6 @@ static void SWRenderer_drawSprite(Renderer* renderer, int32_t tpagIndex, float x
         fprintf(stderr, "%s: tpagIndex of %d is invalid, as pageId of %d is invalid\n", __func__, tpagIndex, pageId);
         return;
     }
-    if (!swrEnsureTextureIsLoaded(swr, (uint32_t) pageId)) {
-        fprintf(stderr, "%s: could not ensure texture is loaded, tpagIndex: %d, pageId: %d\n", __func__, tpagIndex, pageId);
-        return;
-    }
     
     int sx = tpag->sourceX;
     int sy = tpag->sourceY;
@@ -249,6 +245,8 @@ static void SWRenderer_drawSprite(Renderer* renderer, int32_t tpagIndex, float x
     dx += x;
     dy += y;
 
+    if (!swrMustRotate(angleDeg) && swrSpriteOutsideView(swr, dx, dy, dw, dh)) return;
+    if (!swrEnsureTextureIsLoaded(swr, (uint32_t)pageId)) return;
     SWTexture* texture = swr->textures[pageId];
     
     if (UNLIKELY(swrMustRotate(angleDeg)))
@@ -282,7 +280,6 @@ static void SWRenderer_drawSpritePart(Renderer* renderer, int32_t tpagIndex,
     TexturePageItem* tpag = &dwin->tpag.items[tpagIndex];
     int16_t pageId = tpag->texturePageId;
     if (0 > pageId || swr->totalTextureCount <= (uint32_t) pageId) return;
-    if (!swrEnsureTextureIsLoaded(swr, (uint32_t) pageId)) return;
     
     int sx = tpag->sourceX + srcOffX;
     int sy = tpag->sourceY + srcOffY;
@@ -303,6 +300,8 @@ static void SWRenderer_drawSpritePart(Renderer* renderer, int32_t tpagIndex,
         sh = sh * tpag->sourceHeight / tpag->targetHeight;
     }
     
+    if (!swrMustRotate(angleDeg) && swrSpriteOutsideView(swr, dx, dy, dw, dh)) return;
+    if (!swrEnsureTextureIsLoaded(swr, (uint32_t)pageId)) return;
     SWTexture* texture = swr->textures[pageId];
     
     if (UNLIKELY(swrMustRotate(angleDeg)))

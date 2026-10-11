@@ -142,3 +142,13 @@ Independent regressions pass on host, SP ARM32 and ASan/UBSan. Palette tests
 also cover transparent and partial-alpha colors. Vainger's missing API
 warning is resolved; its offscreen atlas loading still prevents a successful
 room smoke test.
+
+## Grid writes and early culling chunk 2026-10-11
+
+The inherited `ds_grid_set` rejected its normal four arguments. Grid writes
+now work, and new/resized cells start at numeric zero. Read/write/string
+ownership/resize regressions pass on host, SP ARM32 and ASan/UBSan. Big Bell
+Race now completes its 6,000-step room smoke test in 1.0 seconds, previously
+a level-setup loop. Sprite culling now precedes atlas decoding, with flipped,
+fractional and camera-offset bounds covered by independent tests. Vainger's
+remaining visible working set still exceeds the 24 MiB atlas budget.

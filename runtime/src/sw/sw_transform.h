@@ -53,4 +53,16 @@ FORCE_INLINE void swrReverseTransformSizeIntIfNeeded(SWRenderer* swr, int32_t* d
     if (dy) *dy = (int)(*dy / swr->scaleY);
 }
 
+/* Match the rasterizer's integer bounds before decoding an atlas page. */
+FORCE_INLINE bool swrSpriteOutsideView(SWRenderer* swr, float x, float y, float w, float h) {
+    swrTransformPosIfNeeded(swr, &x, &y);
+    swrTransformSizeIfNeeded(swr, &w, &h);
+    int dx = swrFloor(x), dy = swrFloor(y);
+    int dw = swrCeiling(w), dh = swrCeiling(h);
+    if (dw < 0) { dx += dw; dw = -dw; }
+    if (dh < 0) { dy += dh; dh = -dh; }
+    return dw == 0 || dh == 0 || dx + dw <= swr->portX ||
+           dy + dh <= swr->portY || dx >= swr->maxX || dy >= swr->maxY;
+}
+
 #endif//_SW_TRANSFORM_H
