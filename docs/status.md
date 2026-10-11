@@ -251,3 +251,20 @@ clean matching source/build records and include the exact committed source.
 Six synthetic ELF cases cover target acceptance and rejection of wrong
 architecture, soft float, newer glibc, embedded search paths, and truncation;
 all 14 Python checks pass. A dirty worktree is rejected before packaging.
+
+### Configurable atlas cache and live SP controls
+
+The software renderer accepts `UFO50_TEXTURE_CACHE_MIB` (4–64 MiB) for controlled
+memory experiments and permits one oversized atlas after evicting the others.
+The default remains 24 MiB. A 12 MiB full-library sweep timed out in Vainger
+and Star Waspir: Vainger repeatedly decoded five atlases, including a roughly
+14.5 MiB combined working set. Lowering the cache is not a valid Mini memory fix.
+The restored 24 MiB configuration passes all 50 selected-room probes; host
+ASan/UBSan cache and compatibility selftests and the synthetic mixer test pass.
+
+Through the live SP's measured SDL controller mapping, A visibly jumps in
+Barbuta, X attacks, the D-pad moves, and Start opens the in-game menu. The menu's
+Back to Library and Quit confirmations work and return to the normal muOS
+frontend. The game creates persistent save data in the normal save directory.
+These are application-visible physical-controller-path results; they do not
+replace physical Mini controls or a complete collection gameplay pass.

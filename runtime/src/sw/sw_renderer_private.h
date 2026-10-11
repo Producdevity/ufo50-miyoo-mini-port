@@ -64,6 +64,7 @@ SWSurface;
 typedef struct
 {
     Renderer base;
+    size_t textureCacheBudget;
     
     // Window Properties
     uint16_t width;

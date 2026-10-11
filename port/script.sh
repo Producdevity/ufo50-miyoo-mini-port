@@ -13,8 +13,9 @@ case $(uname -m) in armv7*) ;; *) echo 'This binary requires ARM32 Linux on a Mi
 }
 export UFO50_PLATFORM=miyoo
 export UFO50_RENDER_FPS=30
+export UFO50_TEXTURE_CACHE_MIB="${UFO50_TEXTURE_CACHE_MIB:-24}"
 export UFO50_NATIVE_RESOLUTION=384x216
-export UFO50_PERF_LOG=${UFO50_PERF_LOG:-0}
+export UFO50_PERF_LOG="${UFO50_PERF_LOG:-0}"
 cd "$gamedir/gamefiles"
 exec "$gamedir/bin/butterscotch" data.win --renderer software \
   --lazy-rooms --lazy-textures --lazy-audio --load-type load-per-chunk \

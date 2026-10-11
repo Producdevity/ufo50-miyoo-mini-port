@@ -40,6 +40,15 @@ static void SWRenderer_init(Renderer* renderer, DataWin* dataWin)
     swr->surfaces = (SWSurface**) safeCalloc(swr->surfaceCount, sizeof(SWSurface*));
     
     swr->textureAccessClock = 0;
+    swr->textureCacheBudget = 24u * 1024u * 1024u;
+    const char* cacheSetting = getenv("UFO50_TEXTURE_CACHE_MIB");
+    if (cacheSetting) {
+        char* end = nullptr;
+        unsigned long mib = strtoul(cacheSetting, &end, 10);
+        if (end != cacheSetting && !*end && mib >= 4 && mib <= 64)
+            swr->textureCacheBudget = (size_t)mib * 1024u * 1024u;
+    }
+    logInfo("SWR: texture cache budget %zu bytes\n", swr->textureCacheBudget);
 
     //HACK: this isn't good, really.  This should seriously be refactored.
     //expand datawin's tpag items list to include our surface count.

@@ -4,6 +4,7 @@
 #include "renderer.h"
 
 Renderer* SWRenderer_create(void);
+int SWRenderer_runCacheTests(void);
 
 bool SWRenderer_writeScreenshot(Renderer* renderer, const char* path);
 

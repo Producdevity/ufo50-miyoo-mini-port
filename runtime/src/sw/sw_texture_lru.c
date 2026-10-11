@@ -8,8 +8,9 @@ void swrEvictTextureFromCache(SWRenderer* swr, int textureIndex) {
 }
 
 static bool trimTextureCache(SWRenderer* swr, size_t required) {
-    const size_t budget = 24u * 1024u * 1024u;
-    if (required > budget) return false;
+    size_t budget = swr->textureCacheBudget ? swr->textureCacheBudget : 24u * 1024u * 1024u;
+    // Keep one oversized atlas usable; evict all other atlases before loading it.
+    if (required > budget) budget = required;
     size_t used = 0;
     repeat(swr->textureCount, i) if (swr->textures[i]) used += swrTextureBytes(swr->textures[i]);
     while (used + required > budget) {
@@ -56,4 +57,20 @@ bool swrEnsureTextureIsLoaded(SWRenderer* swr, uint32_t pageId) {
     logInfo("SWR: Loaded TXTR page %u (%dx%d), %zu bytes, %u palette colors\n",
         pageId, width, height, swrTextureBytes(texture), (unsigned)texture->paletteCount);
     return true;
+}
+
+int SWRenderer_runCacheTests(void) {
+    SWTexture* textures[3] = {0};
+    SWRenderer swr = {.textures = textures, .textureCount = 3};
+    repeat(3, i) {
+        textures[i] = swrCreateTexture(nullptr, 8, 8);
+        textures[i]->lastUsed = (uint64_t)i + 1;
+    }
+    swr.textureCacheBudget = swrTextureBytes(textures[1]) + swrTextureBytes(textures[2]);
+    require(trimTextureCache(&swr, 0));
+    require(!textures[0] && textures[1] && textures[2]);
+    require(trimTextureCache(&swr, swr.textureCacheBudget * 2));
+    require(!textures[1] && !textures[2]);
+    logInfo("Texture cache selftests passed: byte budget, LRU order, oversized atlas safety\n");
+    return 0;
 }
