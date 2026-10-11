@@ -39,11 +39,8 @@ static void SWRenderer_init(Renderer* renderer, DataWin* dataWin)
     swr->textures = (SWTexture**) safeCalloc(swr->totalTextureCount, sizeof(SWTexture*));
     swr->surfaces = (SWSurface**) safeCalloc(swr->surfaceCount, sizeof(SWSurface*));
     
-    //allocate texture LRU cache to allow for dynamic unloading of textures
-    swr->textureIndexLRU = (uint32_t*) safeCalloc(TEXTURE_LRU_LENGTH, sizeof(uint32_t));
-    swr->textureIndexLRUHead = 0;
-    swr->textureIndexLRUTail = 0;
-    
+    swr->textureAccessClock = 0;
+
     //HACK: this isn't good, really.  This should seriously be refactored.
     //expand datawin's tpag items list to include our surface count.
     swr->originalTPagCount = dataWin->tpag.count;
@@ -749,7 +746,7 @@ static void SWRenderer_drawSurface(Renderer* renderer, int32_t surfaceID,
                                    uint32_t color, float alpha)
 {
     SWRenderer* swr = (SWRenderer*) renderer;
-    SWTexture* surface, localSurface;
+    SWTexture* surface, localSurface = {0};
     if (surfaceID == APPLICATION_SURFACE_ID) {
         localSurface.buffer = swr->drawingToSurface ? swr->mainFb : swr->fb;
         localSurface.width = swr->drawingToSurface ? swr->mainWidth : swr->width;
@@ -850,7 +847,7 @@ static void SWRenderer_surfaceCopy(Renderer* renderer,
 
     SWRenderer* swr = (SWRenderer*) renderer;
     
-    SWTexture temp1, temp2;
+    SWTexture temp1 = {0}, temp2 = {0};
     SWTexture *dstSurf, *srcSurf;
     
     if (DestSurfaceID == APPLICATION_SURFACE_ID) {
@@ -949,7 +946,7 @@ static int32_t SWRenderer_createSpriteFromSurface(Renderer* renderer, int32_t su
     (void) removeback;
     (void) smooth;
     
-    SWTexture *srcTex, temp1;
+    SWTexture *srcTex, temp1 = {0};
     
     if (surfaceID == APPLICATION_SURFACE_ID) {
         srcTex = &temp1;

@@ -18,6 +18,11 @@ export UFO50_NATIVE_RESOLUTION=384x216
 export UFO50_PERF_LOG=1
 export UFO50_SCREENSHOT="$run/frame.png"
 export UFO50_SCREENSHOT_FRAME=11999
+set --
+if [ -f "$root/test-inputs.json" ]; then
+  set -- --playback-inputs "$root/test-inputs.json" --seed 1234
+  export UFO50_KEYBOARD_PLAYBACK=1
+fi
 cd "$root/gamefiles"
 printf '%s\n' "$run" > "$root/last-run"
 # A bounded first launch records rendering, audio startup, input and room state.
@@ -25,5 +30,5 @@ printf '%s\n' "$run" > "$root/last-run"
 timeout 300 "$root/bin/butterscotch" data.win --renderer software \
   --lazy-rooms --lazy-textures --lazy-audio --load-type load-per-chunk \
   --window-size 640x480 --save-folder "$run/saves" \
-  --exit-at-frame 12000 --dump-frame-json 11999 --dump-frame-json-file "$run/state.json" \
+  "$@" --exit-at-frame 12000 --dump-frame-json 11999 --dump-frame-json-file "$run/state.json" \
   > "$run/runtime.log" 2>&1

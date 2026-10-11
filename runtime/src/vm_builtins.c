@@ -17459,12 +17459,6 @@ static RValue builtin_texturegroup_unload(VMContext* ctx, RValue* args, int32_t 
         if (!tex->mapped) { free(tex->blobData); tex->blobData = nullptr; }
         if (swr->textures[page]) swrEvictTextureFromCache(swr, page);
     }
-    uint32_t retained[TEXTURE_LRU_LENGTH]; unsigned count = 0;
-    int page;
-    while ((page = swrTailTextureIndexLRU(swr, true)) != -1)
-        if (swr->textures[page]) retained[count++] = (uint32_t)page;
-    swr->textureIndexLRUHead = swr->textureIndexLRUTail = 0;
-    repeat(count, i) swrAddTextureIndexToLRU(swr, retained[i]);
     group->status = 0;
     return RValue_makeUndefined();
 }

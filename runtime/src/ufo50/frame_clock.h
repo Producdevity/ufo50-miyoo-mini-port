@@ -9,4 +9,9 @@ static inline bool Ufo50FrameClock_draw(Ufo50FrameClock* clock, double limit, do
     clock->credit -= logicHz;
     return true;
 }
+static inline uint64_t Ufo50FrameClock_deadline(uint64_t previous, uint64_t now, uint64_t period) {
+    uint64_t next = previous + period;
+    // Discard long pauses and loading stalls, but retain phase after short overruns.
+    return now > next && now - next > period * 8 ? now : next;
+}
 #endif

@@ -116,3 +116,20 @@ A five-second capture from the SP codec speaker sink contains 430,080 stereo
 samples at 44.1 kHz, 429,963 nonzero, peak 19,311, RMS 4,224. This confirms
 real game audio reaches the output sink; the physical speaker listening
 check remains separate.
+
+## Palette cache and deadline chunk 2026-10-11
+
+Immutable atlas pages with at most 256 converted colors now use lossless
+8-bit indices. Mutable render surfaces remain full color; larger palettes
+fall back to RGBA. The cache tracks actual storage and evicts the least
+recently used page within a 24 MiB budget. Decoder scratch is additional
+transient memory. Pixel regressions pass on host, SP ARM32 and ASan/UBSan;
+seeded Barbuta PNGs match byte for byte with palette mode enabled/disabled.
+Seven previously timed-out titles now enter their game rooms, including
+Mini & Max, Grimstone and Cyber Owls. Big Bell Race and Vainger still fail.
+
+Frame deadlines retain phase after short overruns, avoiding cumulative
+simulation slowdown. A normal SP frontend run with real audio completes
+12,000 steps. The sustained Barbuta interval measured 29.996 presented FPS and 60.000 simulation Hz over 123.1 seconds.
+This is one SP scene with recorded inputs, not collection-wide or Mini
+performance acceptance. The final forced screenshot/dump is excluded.

@@ -25,9 +25,21 @@
 typedef struct
 {
     uintpixel_t* buffer;
+    uint8_t* indices;
+    uintpixel_t palette[256];
+    uint16_t paletteCount;
+    uint64_t lastUsed;
     uint16_t width, height;
 }
 SWTexture;
+
+static inline uintpixel_t swrTexturePixel(const SWTexture* texture, size_t index) {
+    return texture->indices ? texture->palette[texture->indices[index]] : texture->buffer[index];
+}
+static inline size_t swrTextureBytes(const SWTexture* texture) {
+    return sizeof(*texture) + (size_t)texture->width * texture->height *
+           (texture->indices ? 1 : sizeof(uintpixel_t));
+}
 
 typedef struct
 {
@@ -67,9 +79,7 @@ typedef struct
     
     SWTexture** textures;
     SWSurface** surfaces;
-    uint32_t* textureIndexLRU;
-    uint32_t textureIndexLRUHead;
-    uint32_t textureIndexLRUTail;
+    uint64_t textureAccessClock;
     size_t textureCount;
     size_t surfaceCount;
     size_t totalTextureCount;

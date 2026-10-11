@@ -961,6 +961,7 @@ int loop(CommandLineArgs args, const char *argv0) {
         bool freeCamActive = false;
         bool actuallyShuttingDown = false;
         uint64_t lastFrameTime = nowNanos();
+        uint64_t frameDeadline = lastFrameTime;
         uint64_t lastFrameStartTime = lastFrameTime; // for delta_time
         bool shouldWindowClose = false;
         const char* renderEnv = getenv("UFO50_RENDER_FPS");
@@ -1321,13 +1322,13 @@ int loop(CommandLineArgs args, const char *argv0) {
                 bool fastForwardTabNow = RunnerKeyboard_checkPressed(runner->keyboard, VK_TAB);
                 if (args.fastForwardSpeed > 0.0 && fastForwardTabNow && !fastForwardTabPrev) {
                     fastForwardActive = !fastForwardActive;
-                    lastFrameTime = nowNanos();
+                    lastFrameTime = frameDeadline = nowNanos();
                 }
                 fastForwardTabPrev = fastForwardTabNow;
                 double effectiveSpeed = (args.fastForwardSpeed > 0.0 && fastForwardActive) ? args.fastForwardSpeed : args.speedMultiplier;
                 uint64_t targetFrameTime = 1000000000 / ((runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed) * effectiveSpeed);
-                uint64_t nextFrameTime = lastFrameTime + targetFrameTime;
-                platformSleepUntil(nextFrameTime);
+                frameDeadline = Ufo50FrameClock_deadline(frameDeadline, nowNanos(), targetFrameTime);
+                platformSleepUntil(frameDeadline);
             }
             lastFrameTime = nowNanos();
             if (perfEnabled && lastFrameTime - perfStart >= 1000000000ull) {

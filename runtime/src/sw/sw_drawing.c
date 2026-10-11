@@ -353,16 +353,16 @@ static void swrDrawSpriteInternal(
         for (int y = 0, ys = iys; y < dh; y++, ys += oys, ys2 += oys2)
         {
             uintpixel_t* dstline;
-            const uintpixel_t* srcline;
+            size_t sourceRow;
             dstline = &swr->fb[(dy + y) * swr->fbPitch + dx];
             if (dh == sh)
-                srcline = &texture->buffer[(sy + ys) * texture->width + sx];
+                sourceRow = (size_t)(sy + ys) * texture->width + sx;
             else
-                srcline = &texture->buffer[(sy + (int)(ys2 >> fp_prec)) * texture->width + sx];
+                sourceRow = (size_t)(sy + (int)(ys2 >> fp_prec)) * texture->width + sx;
             
             for (int x = 0, xs = ixs; x < dw; x++, xs += oxs)
             {
-                uintpixel_t pixel = srcline[xs];
+                uintpixel_t pixel = swrTexturePixel(texture, sourceRow + xs);
                 if (opaque(pixel))
                     alphaBlend(&dstline[x], tint(tintColor, pixel), srcalpha, invalpha);
             }
@@ -374,17 +374,17 @@ static void swrDrawSpriteInternal(
         for (int y = 0, ys = iys; y < dh; y++, ys += oys, ys2 += oys2)
         {
             uintpixel_t* dstline;
-            const uintpixel_t* srcline;
+            size_t sourceRow;
             dstline = &swr->fb[(dy + y) * swr->fbPitch + dx];
             if (dh == sh)
-                srcline = &texture->buffer[(sy + ys) * texture->width + sx];
+                sourceRow = (size_t)(sy + ys) * texture->width + sx;
             else
-                srcline = &texture->buffer[(sy + (int)(ys2 >> fp_prec)) * texture->width + sx];
+                sourceRow = (size_t)(sy + (int)(ys2 >> fp_prec)) * texture->width + sx;
             
             fixedp_t xs2 = ixs2;
             for (int x = 0, xs = ixs; x < dw; x++, xs += oxs, xs2 += oxs2)
             {
-                uintpixel_t pixel = srcline[(int)(xs2 >> fp_prec)];
+                uintpixel_t pixel = swrTexturePixel(texture, sourceRow + (int)(xs2 >> fp_prec));
                 if (opaque(pixel))
                     alphaBlend(&dstline[x], tint(tintColor, pixel), srcalpha, invalpha);
             }
@@ -501,7 +501,7 @@ static void swrDrawSpriteRotatedInternal(
             tx += sx;
             ty += sy;
             
-            uintpixel_t src = texture->buffer[ty * texture->width + tx];
+            uintpixel_t src = swrTexturePixel(texture, (size_t)ty * texture->width + tx);
             
             if (opaque(src))
                 alphaBlend(&dstline[cx], tint(tintColor, src), srcalpha, invalpha);
