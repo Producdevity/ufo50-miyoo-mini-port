@@ -5,6 +5,7 @@
 
 Renderer* SWRenderer_create(void);
 int SWRenderer_runCacheTests(void);
+int SWRenderer_runSpriteTests(void);
 
 bool SWRenderer_writeScreenshot(Renderer* renderer, const char* path);
 

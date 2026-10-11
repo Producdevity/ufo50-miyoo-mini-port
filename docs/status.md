@@ -281,3 +281,18 @@ averages 28.765 FPS / 57.564 simulation Hz; some intervals reach 30 FPS, but
 the requested sustained target still fails. Earlier gameplay averages 28.453
 FPS. Observed peak VmHWM is 111,104 KiB. The SP loads a sizeable SDL compatibility
 and GPU stack, so its total RSS does not establish the physical Mini's headroom.
+
+### Native-size sprite blits and clipped-flip safety
+
+A native-size, untinted, normal-blend sprite path separates palette and RGBA
+storage once per row and writes opaque pixels directly. An expanded independent
+pixel oracle exposed a pre-existing clipped-flip overread in the generic path:
+clipping X also shifted Y by one texel. Destination clipping now preserves the
+original source transform and bounds every sample that lies outside an atlas.
+The oracle checks scaling, both flips, clipping, tint, alpha, and palette/RGBA
+storage. Host ASan/UBSan and all 50 room probes pass. Forty-nine final frames
+match the previous renderer byte for byte; Paintball's clipped edge changes.
+Seeded 30/60 draw probes for Barbuta, Vainger, Star Waspir and Cyber Owls reach
+identical rooms and player/entity positions; their globals differ only in the
+three wall-clock timestamps. This is limited parity evidence, not a complete
+Draw-event semantics or full-collection gameplay certification.

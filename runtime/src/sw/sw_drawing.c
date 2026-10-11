@@ -279,115 +279,73 @@ static void swrDrawSpriteInternal(
     uintpixel_t tintColor, int alpha
 )
 {
-    SWRenderer *swr = (SWRenderer*) renderer;
-    
-    bool flipX = false, flipY = false;
-    if (dw < 0) { dx += dw; dw = -dw; flipX = true; }
-    if (dh < 0) { dy += dh; dh = -dh; flipY = true; }
-    
-    //basic out of bound checks
-    if (dw == 0 || dh == 0) return;
+    SWRenderer* swr = (SWRenderer*)renderer;
+    bool flipX = dw < 0, flipY = dh < 0;
+    if (flipX) { dx += dw; dw = -dw; }
+    if (flipY) { dy += dh; dh = -dh; }
+    if (dw <= 0 || dh <= 0) return;
     if (sw == 0) sw = 1;
     if (sh == 0) sh = 1;
-    if (dx + dw <= swr->portX) return;
-    if (dy + dh <= swr->portY) return;
-    if (dx >= swr->maxX) return;
-    if (dy >= swr->maxY) return;
-    
-    int odw = dw, odh = dh;
-    int osw = sw, osh = sh;
-    
-    int minx = swr->portX, miny = swr->portY, maxx = swr->portX + swr->portW, maxy = swr->portY + swr->portH;
-    
-    //out of bounds adjustment checks
-    int diffxl = 0, diffyl = 0, diffxu = 0, diffyu = 0;
-    if (dx < minx) { diffxl = minx - dx; dx = minx; dw -= diffxl; }
-    if (dy < miny) { diffyl = miny - dy; dy = miny; dh -= diffyl; }
-    if (dx + dw > maxx) { diffxu = dx + dw - maxx; dw -= diffxu; }
-    if (dy + dh > maxy) { diffyu = dy + dh - maxy; dh -= diffyu; }
-    
-    if (diffxl != 0 || diffyl != 0 || diffxu != 0 || diffyu != 0)
-    {
-        //adjust source coordinates too
-        diffxl = (int)((long)diffxl * osw / odw);
-        diffyl = (int)((long)diffyl * osh / odh);
-        diffxu = (int)((long)(diffxu + 1) * osw / odw);
-        diffyu = (int)((long)(diffyu + 1) * osh / odh);
-        sx += flipX ? diffxu : diffxl;
-        sy += flipY ? diffyu : diffyl;
-        sw -= diffxl + diffxu;
-        sh -= diffyl + diffyu;
-        if (sw <= 0 || sh <= 0) return;
-    }
-    
-    //clip the source coords into bounds too
-    if (sx < 0) { sw += sx; sx = 0; }
-    if (sy < 0) { sh += sy; sy = 0; }
-    if (sx + sw >= texture->width)  { sw = texture->width  - sx; }
-    if (sy + sh >= texture->height) { sh = texture->height - sy; }
-    if (sw <= 0 || sh <= 0) return;
-    
-    //okay, now we can finally get on with rendering
-    
-    int ixs = 0, oxs = 1, iys = 0, oys = 1;
-    if (flipX) ixs = dw - 1, oxs = -1;
-    if (flipY) iys = dh - 1, oys = -1;
-    
-    // tweak these if stuff doesn't look right
-    typedef int32_t fixedp_t;
-    const int fp_prec = 14;
+    if (sw < 0 || sh < 0) return;
 
-    fixedp_t ystep = (sh == dh) ? (1 << fp_prec) : ((fixedp_t) osh << fp_prec) / odh;
-    fixedp_t xstep = (sw == dw) ? (1 << fp_prec) : ((fixedp_t) osw << fp_prec) / odw;
-    fixedp_t oxs2 = oxs * xstep;
-    fixedp_t oys2 = oys * ystep;
-    fixedp_t ixs2 = ixs * xstep;
-    fixedp_t iys2 = iys * ystep;
-    
-    int srcalpha = swrCalcSrcAlpha(swr, alpha);
-    int invalpha = swrCalcDstAlpha(swr, alpha);
-    
-    if (sw == dw)
-    {
-        fixedp_t ys2 = (fixedp_t) iys2;
-        for (int y = 0, ys = iys; y < dh; y++, ys += oys, ys2 += oys2)
-        {
-            uintpixel_t* dstline;
-            size_t sourceRow;
-            dstline = &swr->fb[(dy + y) * swr->fbPitch + dx];
-            if (dh == sh)
-                sourceRow = (size_t)(sy + ys) * texture->width + sx;
-            else
-                sourceRow = (size_t)(sy + (int)(ys2 >> fp_prec)) * texture->width + sx;
-            
-            for (int x = 0, xs = ixs; x < dw; x++, xs += oxs)
-            {
-                uintpixel_t pixel = swrTexturePixel(texture, sourceRow + xs);
-                if (opaque(pixel))
-                    alphaBlend(&dstline[x], tint(tintColor, pixel), srcalpha, invalpha);
+    // Clip destination pixels without changing the original source transform.
+    // Cropping one axis must never shift a flipped sprite on the other axis.
+    int odw = dw, odh = dh;
+    int minx = swrMax(0, swr->portX), miny = swrMax(0, swr->portY);
+    int maxx = swrMin(swr->width, swrMin(swr->maxX, swr->portX + swr->portW));
+    int maxy = swrMin(swr->height, swrMin(swr->maxY, swr->portY + swr->portH));
+    if (dx + dw <= minx || dy + dh <= miny || dx >= maxx || dy >= maxy) return;
+    int left = swrMax(0, minx - dx), top = swrMax(0, miny - dy);
+    dx += left; dy += top;
+    dw = swrMin(odw - left, maxx - dx);
+    dh = swrMin(odh - top, maxy - dy);
+    int oxs = flipX ? -1 : 1, oys = flipY ? -1 : 1;
+    int ixs = flipX ? odw - 1 - left : left;
+    int iys = flipY ? odh - 1 - top : top;
+    bool sourceInside = sx >= 0 && sy >= 0 && sx < texture->width && sy < texture->height &&
+                        sw <= texture->width - sx && sh <= texture->height - sy;
+
+    // Native-resolution tiles need no scaling, tint, or blending.
+#if PIXEL_SIZE == 32
+    if (swr->spriteFastPath && sourceInside && sw == odw && sh == odh && alpha == 256 &&
+        swr->blendMode == bm_normal && (tintColor & 0xFFFFFF) == 0xFFFFFF) {
+        for (int y = 0, ys = iys; y < dh; y++, ys += oys) {
+            uintpixel_t* dst = &swr->fb[(dy + y) * swr->fbPitch + dx];
+            size_t row = (size_t)(sy + ys) * texture->width + sx;
+            if (texture->indices) {
+                unsigned bits = texture->indexBits, mask = (1u << bits) - 1;
+                for (int x = 0, xs = ixs; x < dw; x++, xs += oxs) {
+                    size_t bit = (row + xs) * bits;
+                    uintpixel_t pixel = texture->palette[
+                        (texture->indices[bit >> 3] >> (bit & 7)) & mask];
+                    if (opaque(pixel)) dst[x] = pixel;
+                }
+            } else {
+                const uintpixel_t* src = texture->buffer + row;
+                for (int x = 0, xs = ixs; x < dw; x++, xs += oxs) {
+                    uintpixel_t pixel = src[xs];
+                    if (opaque(pixel)) dst[x] = pixel;
+                }
             }
         }
+        return;
     }
-    else
-    {
-        fixedp_t ys2 = iys2;
-        for (int y = 0, ys = iys; y < dh; y++, ys += oys, ys2 += oys2)
-        {
-            uintpixel_t* dstline;
-            size_t sourceRow;
-            dstline = &swr->fb[(dy + y) * swr->fbPitch + dx];
-            if (dh == sh)
-                sourceRow = (size_t)(sy + ys) * texture->width + sx;
-            else
-                sourceRow = (size_t)(sy + (int)(ys2 >> fp_prec)) * texture->width + sx;
-            
-            fixedp_t xs2 = ixs2;
-            for (int x = 0, xs = ixs; x < dw; x++, xs += oxs, xs2 += oxs2)
-            {
-                uintpixel_t pixel = swrTexturePixel(texture, sourceRow + (int)(xs2 >> fp_prec));
-                if (opaque(pixel))
-                    alphaBlend(&dstline[x], tint(tintColor, pixel), srcalpha, invalpha);
-            }
+#endif
+    const int fp_prec = 14;
+    int64_t xstep = ((int64_t)sw << fp_prec) / odw;
+    int64_t ystep = ((int64_t)sh << fp_prec) / odh;
+    int srcalpha = swrCalcSrcAlpha(swr, alpha), invalpha = swrCalcDstAlpha(swr, alpha);
+    int64_t ys2 = (int64_t)iys * ystep;
+    for (int y = 0; y < dh; y++, ys2 += oys * ystep) {
+        int ty = sy + (int)(ys2 >> fp_prec);
+        if (!sourceInside && (ty < 0 || ty >= texture->height)) continue;
+        uintpixel_t* dst = &swr->fb[(dy + y) * swr->fbPitch + dx];
+        int64_t xs2 = (int64_t)ixs * xstep;
+        for (int x = 0; x < dw; x++, xs2 += oxs * xstep) {
+            int tx = sx + (int)(xs2 >> fp_prec);
+            if (!sourceInside && (tx < 0 || tx >= texture->width)) continue;
+            uintpixel_t pixel = swrTexturePixel(texture, (size_t)ty * texture->width + tx);
+            if (opaque(pixel)) alphaBlend(&dst[x], tint(tintColor, pixel), srcalpha, invalpha);
         }
     }
 }
@@ -1081,4 +1039,46 @@ void swrDrawText(SWRenderer* swr, const char* text, float x, float y, float xsca
             lineStart = lineEnd;
         }
     }
+}
+
+int SWRenderer_runSpriteTests(void) {
+    uint32_t rgba[8 * 8];
+    repeat(64, i) rgba[i] = i % 4 == 0 ? 0 : 0xFF000000 | ((i + 1) * 0x010203);
+    SWTexture* palette = swrCreateTexture((uint8_t*)rgba, 8, 8);
+    SWTexture* raw = swrCreateTextureEx(rgba, 8, 8, true);
+    uintpixel_t expected[20 * 16], actual[20 * 16], fallback[20 * 16];
+    SWRenderer swr = {.width=20, .height=16, .fbPitch=20,
+        .portW=20, .portH=16, .maxX=20, .maxY=16, .blendMode=bm_normal};
+    repeat(2, storage) repeat(4, flip) repeat(4, clip) repeat(3, style) repeat(3, scale) {
+        repeat(320, i) expected[i] = actual[i] = fallback[i] = 0xFF123456;
+        int extent = scale == 0 ? 8 : scale == 1 ? 16 : 4;
+        int dw = flip & 1 ? -extent : extent, dh = flip & 2 ? -extent : extent;
+        int x = clip == 1 ? -2 : clip == 2 ? 16 : (dw < 0 ? 12 : 4);
+        int y = clip == 3 ? -2 : (dh < 0 ? 12 : 4);
+        uintpixel_t color = style == 1 ? 0xFF402080 : 0xFFFFFFFF;
+        int alpha = style == 2 ? 128 : 256;
+        SWTexture* texture = storage ? palette : raw;
+        swr.fb = fallback; swr.spriteFastPath = false;
+        swrDrawSpriteInternal((Renderer*)&swr, x, y, dw, dh, texture, 0, 0, 8, 8, color, alpha);
+        swr.fb = actual; swr.spriteFastPath = true;
+        swrDrawSpriteInternal((Renderer*)&swr, x, y, dw, dh, texture, 0, 0, 8, 8, color, alpha);
+        // Independent destination-to-source oracle, including clipped flips.
+        int left = dw < 0 ? x + dw : x, top = dh < 0 ? y + dh : y;
+        repeat(16, py) repeat(20, px) {
+            int ox = px - left, oy = py - top;
+            if (ox < 0 || oy < 0 || ox >= extent || oy >= extent) continue;
+            int tx = ((flip & 1 ? extent - 1 - ox : ox) * 8) / extent;
+            int ty = ((flip & 2 ? extent - 1 - oy : oy) * 8) / extent;
+            uintpixel_t pixel = swrConvertPixelTexture(rgba[ty * 8 + tx]);
+            if (opaque(pixel)) alphaBlend(&expected[py * 20 + px], tint(color, pixel), alpha, 256 - alpha);
+        }
+        require(memcmp(expected, actual, sizeof(actual)) == 0);
+        require(memcmp(expected, fallback, sizeof(fallback)) == 0);
+    }
+    // Source rectangles outside an atlas may only sample pixels inside it.
+    swr.fb = actual;
+    swrDrawSpriteInternal((Renderer*)&swr, 0, 0, 16, 16, palette, -2, -2, 12, 12, 0xFFFFFFFF, 256);
+    swrFreeTexture(raw); swrFreeTexture(palette);
+    logInfo("Sprite selftests passed: independent pixel oracle, RGBA/palette, scaling, clipped flips, tint and alpha\n");
+    return 0;
 }

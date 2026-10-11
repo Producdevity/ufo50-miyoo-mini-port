@@ -39,6 +39,8 @@ static void SWRenderer_init(Renderer* renderer, DataWin* dataWin)
     swr->textures = (SWTexture**) safeCalloc(swr->totalTextureCount, sizeof(SWTexture*));
     swr->surfaces = (SWSurface**) safeCalloc(swr->surfaceCount, sizeof(SWSurface*));
     
+    swr->spriteFastPath = !getenv("UFO50_SPRITE_FAST_PATH") ||
+                          strcmp(getenv("UFO50_SPRITE_FAST_PATH"), "0") != 0;
     swr->textureAccessClock = 0;
     swr->textureCacheBudget = 24u * 1024u * 1024u;
     const char* cacheSetting = getenv("UFO50_TEXTURE_CACHE_MIB");

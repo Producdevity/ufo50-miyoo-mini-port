@@ -65,6 +65,7 @@ typedef struct
 {
     Renderer base;
     size_t textureCacheBudget;
+    bool spriteFastPath;
     
     // Window Properties
     uint16_t width;
