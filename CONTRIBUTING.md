@@ -118,3 +118,17 @@ The helper checks the clean package/build provenance before writing and retains
 a recoverable backup under `artifacts/sd-backups/`. Verify the deployment report
 and eject the card safely. Installing verified files is separate from testing
 gameplay on the physical Mini.
+
+The SDL1 border-clear check runs without game files or a display. Build it with
+the same SDL headers and link library as the Mini runtime:
+
+```sh
+scripts/zig-cc.sh -O2 -I.local/deps/include -Iruntime/src/backends \
+  tests/native/video_present.c .local/deps/lib/libSDL-1.2.so.0 \
+  -o artifacts/video-present-test
+```
+
+Run the executable with the Mini SDK SDL library available on the ARM32 test
+device. It compares 48 complete 16-bit and 32-bit images against SDL's full-clear
+scaling path, including uneven borders and stale pixels from a previous frame.
+Performance logs report `present_ms` separately from game drawing.

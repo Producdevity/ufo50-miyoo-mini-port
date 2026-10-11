@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <SDL/SDL.h>
+#include "sdl1_present.h"
 
 #include "common.h"
 #include "input_recording.h"
@@ -417,9 +418,11 @@ void platformSwapBuffers(void) {
             if (height > scr->h) { height = scr->h; width = height * source->w / source->h; }
             SDL_Rect dest = {(Sint16)((scr->w - width) / 2), (Sint16)((scr->h - height) / 2),
                              (Uint16)width, (Uint16)height};
-            SDL_FillRect(scr, NULL, 0);
-            if (SDL_SoftStretch(source, NULL, scr, &dest) < 0)
+            Ufo50_clearVideoBorders(scr, &dest);
+            if (SDL_SoftStretch(source, NULL, scr, &dest) < 0) {
+                SDL_FillRect(scr, NULL, 0);
                 logError("Video: native framebuffer scaling failed: %s\n", SDL_GetError());
+            }
         } else {
             SDL_BlitSurface(nextFb, NULL, scr, NULL);
         }

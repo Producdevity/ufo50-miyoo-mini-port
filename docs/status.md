@@ -480,3 +480,12 @@ resolved handler. Draw dispatch can skip the immutable event-table scan for
 nonresponders, while responding objects still use the same code and owner
 resolution. The cache costs one byte per object. All 50 seeded host states
 and final PNGs remain identical, and sanitized compatibility tests pass.
+
+### Clear only the display borders
+
+SDL1 presentation clears the bars outside the scaled image; SDL_SoftStretch
+overwrites the image rectangle. A native ARM32 oracle compares all visible
+pixels against the previous full-clear path in 48 cases, with both RGB565 and
+32-bit surfaces, asymmetric borders, and different previous contents. Both the
+SP library and Mini SDK library pass. Presentation time is recorded separately
+from drawing. Python and launcher checks pass.

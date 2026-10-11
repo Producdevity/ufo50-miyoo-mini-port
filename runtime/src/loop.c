@@ -981,7 +981,7 @@ int loop(CommandLineArgs args, const char *argv0) {
         const char* perfEnv = getenv("UFO50_PERF_LOG");
         bool perfEnabled = perfEnv && strcmp(perfEnv, "0") != 0;
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
-        uint64_t perfWork = 0, perfDrawWork = 0;
+        uint64_t perfWork = 0, perfDrawWork = 0, perfPresentWork = 0;
         while (true) {
             if (runner->shouldExit || shouldWindowClose) {
                 actuallyShuttingDown = true;
@@ -1314,7 +1314,9 @@ int loop(CommandLineArgs args, const char *argv0) {
                     perfDraws++;
                     // Only present when there isn't a Draw-event room change.
                     if (runner->pendingRoom == -1) {
+                        uint64_t presentStarted = nowNanos();
                         platformSwapBuffers();
+                        perfPresentWork += nowNanos() - presentStarted;
                         perfPresents++;
                     }
                 }
@@ -1358,13 +1360,14 @@ int loop(CommandLineArgs args, const char *argv0) {
             lastFrameTime = nowNanos();
             if (perfEnabled && lastFrameTime - perfStart >= 1000000000ull) {
                 double seconds = (lastFrameTime - perfStart) / 1000000000.0;
-                logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f\n",
+                logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f present_ms=%.3f\n",
                     runner->frameCount, seconds, (unsigned long long)perfSteps,
                     (unsigned long long)perfDraws, (unsigned long long)perfPresents,
                     perfSteps ? perfWork / 1000000.0 / perfSteps : 0,
-                    perfDraws ? perfDrawWork / 1000000.0 / perfDraws : 0);
+                    perfDraws ? perfDrawWork / 1000000.0 / perfDraws : 0,
+                    perfPresents ? perfPresentWork / 1000000.0 / perfPresents : 0);
                 perfStart = lastFrameTime; perfSteps = perfDraws = perfPresents = 0;
-                perfWork = perfDrawWork = 0;
+                perfWork = perfDrawWork = perfPresentWork = 0;
             }
         }
 
