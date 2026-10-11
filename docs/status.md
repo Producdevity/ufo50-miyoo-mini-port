@@ -432,3 +432,14 @@ A synthetic regression covers nested snapshots, creation, removal, object
 changes and room-list clearing. All 50 host snapshots match the previous
 build exactly with the same seeded inputs and real offline mixer. ASan/UBSan
 compatibility tests pass. Device performance is checked separately.
+
+### Cull tile raster work before asset lookup
+
+The software renderer exposes conservative world bounds for its current target.
+Legacy tiles outside those bounds return before resolving texture metadata;
+GMS2 tile grids iterate the visible cell range with padding for rounding.
+Discarded main frames have an empty raster region, while user-created surfaces
+keep their own region and continue updating at the logic rate. All 50 seeded
+host states and final PNGs match the collision-cache baseline exactly.
+Sanitized compatibility tests pass, including main-frame discard and surface
+raster bounds.

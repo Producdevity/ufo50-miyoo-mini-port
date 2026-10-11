@@ -745,8 +745,21 @@ void Runner_drawTileLayer(Runner* runner, RoomLayerTilesData* data, float layerO
 
     static bool rotateWarned = false;
 
-    repeat(data->tilesY, ty) {
-        repeat(data->tilesX, tx) {
+    uint32_t minTX = 0, minTY = 0, maxTX = data->tilesX, maxTY = data->tilesY;
+    Renderer* renderer = runner->renderer;
+    if (renderer->vtable->getRasterBounds != nullptr) {
+        float left, top, right, bottom;
+        if (renderer->vtable->getRasterBounds(renderer, &left, &top, &right, &bottom)) {
+            if (left >= right || top >= bottom) return;
+            // Clamp in floating point before conversion: views can lie outside the map.
+            minTX = (uint32_t)fminf(maxTX, fmaxf(0, floorf((left - layerOffsetX) / tileW) - 1));
+            minTY = (uint32_t)fminf(maxTY, fmaxf(0, floorf((top - layerOffsetY) / tileH) - 1));
+            maxTX = (uint32_t)fminf(maxTX, fmaxf(0, ceilf((right - layerOffsetX) / tileW) + 1));
+            maxTY = (uint32_t)fminf(maxTY, fmaxf(0, ceilf((bottom - layerOffsetY) / tileH) + 1));
+        }
+    }
+    for (uint32_t ty = minTY; ty < maxTY; ty++) {
+        for (uint32_t tx = minTX; tx < maxTX; tx++) {
             uint32_t cell = data->tileData[ty * data->tilesX + tx];
             uint32_t tileIndex = cell & GMS2_TILE_INDEX_MASK;
             if (tileIndex == 0) continue; // 0 = empty

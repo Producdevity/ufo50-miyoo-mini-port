@@ -118,6 +118,9 @@ typedef struct {
     void (*gpuSetFog)(Renderer* renderer, bool enable, uint32_t color);
     // Optional: platform-specific tile rendering (nullptr = use default drawSpritePart path)
     void (*drawTile)(Renderer* renderer, RoomTile* tile, float offsetX, float offsetY);
+    // Optional conservative world bounds for raster-only tile culling.
+    // An empty rectangle means the current target is not being rasterized.
+    bool (*getRasterBounds)(Renderer* renderer, float* left, float* top, float* right, float* bottom);
     void (*drawSpriteTiled)(Renderer* renderer, int32_t tpagIndex, float originX, float originY, float x, float y, float xscale, float yscale, bool tileX, bool tileY, float roomW, float roomH, uint32_t color, float alpha);
     // Surface Functions
     int32_t (*createSurface)(Renderer* renderer, int32_t width, int32_t height);
@@ -588,6 +591,18 @@ static inline void Renderer_drawTile(Renderer* renderer, RoomTile* tile, float o
     if (renderer->vtable->drawTile != nullptr) {
         renderer->vtable->drawTile(renderer, tile, offsetX, offsetY);
         return;
+    }
+
+    if (renderer->vtable->getRasterBounds != nullptr) {
+        float left, top, right, bottom;
+        if (renderer->vtable->getRasterBounds(renderer, &left, &top, &right, &bottom)) {
+            if (left >= right || top >= bottom) return;
+            float x1 = (float)tile->x + offsetX, y1 = (float)tile->y + offsetY;
+            float x2 = x1 + tile->width * tile->scaleX;
+            float y2 = y1 + tile->height * tile->scaleY;
+            if (fmaxf(x1, x2) < left || fminf(x1, x2) > right ||
+                fmaxf(y1, y2) < top || fminf(y1, y2) > bottom) return;
+        }
     }
 
     int32_t tpagIndex = Renderer_resolveObjectTPAGIndex(renderer->dataWin, tile);

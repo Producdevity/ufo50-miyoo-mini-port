@@ -1138,6 +1138,22 @@ static int32_t SWRenderer_ensureApplicationSurface(Renderer* renderer, int32_t w
     return APPLICATION_SURFACE_ID;
 }
 
+static bool SWRenderer_getRasterBounds(Renderer* renderer, float* left, float* top, float* right, float* bottom) {
+    SWRenderer* swr = (SWRenderer*)renderer;
+    if (swrDiscardingMainFrame(swr)) {
+        *left = *top = *right = *bottom = 0;
+        return true;
+    }
+    if (!(swr->scaleX > 0) || !(swr->scaleY > 0) ||
+        !isfinite(swr->scaleX) || !isfinite(swr->scaleY)) return false;
+    // Two framebuffer pixels cover floor/ceil rounding and mirrored edges.
+    *left = swr->viewX - 2.0f / swr->scaleX;
+    *top = swr->viewY - 2.0f / swr->scaleY;
+    *right = swr->viewX + (swr->maxX - swr->portX + 2.0f) / swr->scaleX;
+    *bottom = swr->viewY + (swr->maxY - swr->portY + 2.0f) / swr->scaleY;
+    return isfinite(*left) && isfinite(*top) && isfinite(*right) && isfinite(*bottom);
+}
+
 static RendererVtable swrVtable;
 
 void SWRenderer_setFrameRendering(Renderer* renderer, bool enabled) {
@@ -1282,6 +1298,7 @@ Renderer* SWRenderer_create(void)
 {
     SWRenderer* swr = (SWRenderer*) safeCalloc(1, sizeof(SWRenderer));
     swr->base.vtable = &swrVtable;
+    swrVtable.getRasterBounds = SWRenderer_getRasterBounds;
     swrVtable.init                     = SWRenderer_init;
     swrVtable.destroy                  = SWRenderer_destroy;
     swrVtable.beginFrame               = SWRenderer_beginFrame;
