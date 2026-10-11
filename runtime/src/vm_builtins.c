@@ -17936,6 +17936,8 @@ void VMBuiltins_registerAll(VMContext* ctx) {
     VM_registerBuiltin(ctx, "audio_sound_get_pitch", builtin_audio_sound_get_pitch);
     VM_registerBuiltin(ctx, "audio_master_gain", builtin_audio_master_gain);
     VM_registerBuiltin(ctx, "audio_set_master_gain", builtin_audio_set_master_gain);
+    VM_registerBuiltin(ctx, "audio_group_set_gain", builtin_ufo_audio_group_set_gain);
+    VM_registerBuiltin(ctx, "audio_group_unload", builtin_ufo_audio_group_unload);
     VM_registerBuiltin(ctx, "audio_group_load", builtin_audio_group_load);
     VM_registerBuiltin(ctx, "audio_group_is_loaded", builtin_audio_group_is_loaded);
     if (!isGMS2) {

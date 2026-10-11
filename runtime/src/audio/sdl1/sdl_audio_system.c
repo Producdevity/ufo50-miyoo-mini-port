@@ -35,8 +35,8 @@ static void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
 
         // Zero-fill any tail miniaudio didn't fill (silence on underrun)
         if ((int) framesRead < chunk) {
-            memset(&sdlMixScratch[framesRead * 2], 0,
-                   (size_t) (chunk - (int) framesRead) * 2 * sizeof(float));
+            memset(&sdlMixScratch[framesRead * channels], 0,
+                   (size_t) (chunk - (int) framesRead) * channels * sizeof(float));
         }
 
         for (int i = 0, n = chunk * channels; i < n; i++) {

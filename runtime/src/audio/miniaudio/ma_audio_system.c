@@ -97,6 +97,10 @@ static char* resolveExternalPath(MaAudioSystem* ma, Sound* sound) {
 
 void MaAudioSystem_resetState(MaAudioSystem* ma) {
     memset(ma->instances, 0, sizeof(ma->instances));
+    arrsetlen(ma->groupGains, ma->base.dw->agrp.count > 0 ? ma->base.dw->agrp.count : 1);
+    repeat(arrlen(ma->groupGains), i) {
+        ma->groupGains[i] = (AudioGroupGain){.current=1, .target=1, .start=1};
+    }
     ma->nextInstanceCounter = 0;
 
     repeat(MAX_LISTENERS, i) {
@@ -166,19 +170,34 @@ static void maDestroy(AudioSystem* audio) {
     // Free loaded audio groups. The main data.win is owned by the caller, so skip index 0.
     if (arrlen(ma->base.audioGroups) > 1) {
         for (int32_t i = 1; i < (int32_t) arrlen(ma->base.audioGroups); i++) {
-            DataWin_free(ma->base.audioGroups[i]);
+            if (ma->base.audioGroups[i]) DataWin_free(ma->base.audioGroups[i]);
         }
     }
     arrfree(ma->base.audioGroups);
+    arrfree(ma->groupGains);
 
     ma_device_uninit(&ma->device);
     ma_engine_uninit(&ma->engine);
     free(ma);
 }
 
+static float maGroupGain(MaAudioSystem* ma, int32_t group) {
+    return group >= 0 && group < arrlen(ma->groupGains) ? ma->groupGains[group].current : 1;
+}
+static bool maHasGroup(AudioSystem* audio, int32_t group) {
+    return group >= 0 && group < arrlen(audio->audioGroups) && audio->audioGroups[group] != nullptr;
+}
+
 static void maUpdate(AudioSystem* audio, float deltaTime) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
+    repeat(arrlen(ma->groupGains), i) {
+        AudioGroupGain* gain = &ma->groupGains[i];
+        if (gain->remaining > 0) {
+            gain->remaining = fmaxf(0, gain->remaining - deltaTime);
+            gain->current = gain->start + (gain->target - gain->start) * (1 - gain->remaining / gain->duration);
+        }
+    }
     repeat(MAX_SOUND_INSTANCES, i) {
         SoundInstance* inst = &ma->instances[i];
         if (!inst->active) continue;
@@ -193,8 +212,10 @@ static void maUpdate(AudioSystem* audio, float deltaTime) {
                 float t = 1.0f - (inst->fadeTimeRemaining / inst->fadeTotalTime);
                 inst->currentGain = inst->startGain + (inst->targetGain - inst->startGain) * t;
             }
-            ma_sound_set_volume(&inst->maSound, inst->currentGain);
+
         }
+
+        ma_sound_set_volume(&inst->maSound, inst->currentGain * maGroupGain(ma, inst->groupIndex));
 
         // Clean up ended non-looping sounds (ma_sound_at_end avoids reaping still-loading async sounds)
         if (ma_sound_at_end(&inst->maSound) && !ma_sound_is_looping(&inst->maSound)) {
@@ -260,6 +281,10 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
         bool inAudo = !isRegular || isEmbedded || isCompressed;
 
         if (inAudo) {
+            if (!maHasGroup(audio, sound->audioGroup)) {
+                logWarn("Audio: sound '%s' requires unloaded group %d\n", sound->name, sound->audioGroup);
+                return -1;
+            }
             // Embedded audio: decode from AUDO chunk memory
             if (0 > sound->audioFile || (uint32_t) sound->audioFile >= ma->base.audioGroups[sound->audioGroup]->audo.count) {
                 logWarn("Audio: Invalid audio file index %d for sound '%s'\n", sound->audioFile, sound->name);
@@ -306,7 +331,8 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     // Apply properties
     float volume = isStream ? streamGain : sound->volume;
     float pitch = isStream ? streamPitch : sound->pitch;
-    ma_sound_set_volume(&slot->maSound, volume);
+    slot->groupIndex = isStream ? -1 : sound->audioGroup;
+    ma_sound_set_volume(&slot->maSound, volume * maGroupGain(ma, slot->groupIndex));
     if (pitch != 1.0f) {
         ma_sound_set_pitch(&slot->maSound, pitch);
     }
@@ -485,7 +511,7 @@ static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float ga
                 inst->currentGain = gain;
                 inst->targetGain = gain;
                 inst->fadeTimeRemaining = 0.0f;
-                ma_sound_set_volume(&inst->maSound, gain);
+                ma_sound_set_volume(&inst->maSound, gain * maGroupGain(ma, inst->groupIndex));
             } else {
                 inst->startGain = inst->currentGain;
                 inst->targetGain = gain;
@@ -508,7 +534,7 @@ static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float ga
                         inst->currentGain = gain;
                         inst->targetGain = gain;
                         inst->fadeTimeRemaining = 0.0f;
-                        ma_sound_set_volume(&inst->maSound, gain);
+                        ma_sound_set_volume(&inst->maSound, gain * maGroupGain(ma, inst->groupIndex));
                     } else {
                         inst->startGain = inst->currentGain;
                         inst->targetGain = gain;
@@ -690,6 +716,7 @@ static float maGetSoundLength(AudioSystem* audio, int32_t soundOrInstance) {
     ma_decoder decoder;
     ma_result decResult;
     if (inAudo) {
+        if (!maHasGroup(audio, sound->audioGroup)) return 0.0f;
         if (0 > sound->audioFile || (uint32_t) sound->audioFile >= ma->base.audioGroups[sound->audioGroup]->audo.count) return 0.0f;
         DataWin* audioGroup = ma->base.audioGroups[sound->audioGroup];
         DataWin_loadAudoIfNeeded(audioGroup, (uint32_t)sound->audioFile);
@@ -731,7 +758,39 @@ static void maSetChannelCount(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int3
     // miniaudio handles channel management internally, this is a no-op
 }
 
+static void maSetGroupGain(AudioSystem* audio, int32_t groupIndex, float gain, uint32_t timeMs) {
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
+    if (groupIndex < 0 || groupIndex >= arrlen(ma->groupGains) || !isfinite(gain)) return;
+    AudioGroupGain* state = &ma->groupGains[groupIndex];
+    state->start = state->current; state->target = fmaxf(0, gain);
+    state->remaining = state->duration = timeMs / 1000.0f;
+    if (timeMs == 0) state->current = state->target;
+    repeat(MAX_SOUND_INSTANCES, i) {
+        SoundInstance* inst = &ma->instances[i];
+        if (inst->active && inst->groupIndex == groupIndex)
+            ma_sound_set_volume(&inst->maSound, inst->currentGain * state->current);
+    }
+}
+
+static void maGroupUnload(AudioSystem* audio, int32_t groupIndex) {
+    if (groupIndex <= 0 || !maHasGroup(audio, groupIndex)) return;
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
+    repeat(MAX_SOUND_INSTANCES, i) {
+        SoundInstance* inst = &ma->instances[i];
+        if (inst->active && inst->groupIndex == groupIndex) {
+            ma_sound_stop(&inst->maSound); ma_sound_uninit(&inst->maSound);
+            if (inst->ownsDecoder) ma_decoder_uninit(&inst->decoder);
+            inst->active = false;
+        }
+    }
+    DataWin_free(audio->audioGroups[groupIndex]);
+    audio->audioGroups[groupIndex] = nullptr;
+}
+
 static void maGroupLoad(AudioSystem* audio, int32_t groupIndex) {
+    if (maHasGroup(audio, groupIndex)) return;
+    if (groupIndex < 0 || (uint32_t)groupIndex >= audio->dw->agrp.count) return;
+    while (arrlen(audio->audioGroups) <= groupIndex) arrput(audio->audioGroups, nullptr);
     if (groupIndex > 0 && audio->dw->agrp.count > (uint32_t) groupIndex) {
         AudioGroup* audioGroupEntry = &audio->dw->agrp.audioGroups[groupIndex];
 
@@ -752,18 +811,18 @@ static void maGroupLoad(AudioSystem* audio, int32_t groupIndex) {
         if (!fileSystem->vtable->fileExists(fileSystem, buf)) {
             logWarn("Audio: Wanted to load Audio Group %d, but Audio Group %d does not exist in the file system!\n", groupIndex, groupIndex);
             free(buf);
-            DataWin* dw = (DataWin *)safeCalloc(1, sizeof(DataWin));
-            arrput(audio->audioGroups, dw);
+
             return;
         }
 
         DataWinParserOptions options = {0};
         options.parseAudo = true;
         options.lazyLoadAudio = audio->dw->lazyLoadAudio;
-        if (audio->dw->mappedFile)
-            options.loadType = DATAWINLOADTYPE_MAP_FILE;
-        DataWin *audioGroup = DataWin_parse(((MaAudioSystem*)audio)->fileSystem->vtable->resolvePath(((MaAudioSystem*)audio)->fileSystem, buf), options);
-        arrput(audio->audioGroups, audioGroup);
+        options.loadType = audio->dw->mappedFile ? DATAWINLOADTYPE_MAP_FILE : DATAWINLOADTYPE_LOAD_PER_CHUNK;
+        char* resolved = fileSystem->vtable->resolvePath(fileSystem, buf);
+        DataWin* audioGroup = resolved ? DataWin_parse(resolved, options) : nullptr;
+        free(resolved);
+        audio->audioGroups[groupIndex] = audioGroup;
         free(buf);
     } else {
         logWarn("Audio: Wanted to load Audio Group %d, but Audio Group %d does not exist in the AGPR!\n", groupIndex, groupIndex);
@@ -771,7 +830,7 @@ static void maGroupLoad(AudioSystem* audio, int32_t groupIndex) {
 }
 
 static bool maGroupIsLoaded(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t groupIndex) {
-    return (arrlen(audio->audioGroups) > groupIndex);
+    return maHasGroup(audio, groupIndex);
 }
 
 // ===[ Audio Streams ]===
@@ -873,6 +932,8 @@ static void maSetupVtable(void) {
     maAudioSystemVtable.setMasterGainForListener = maSetMasterGainForListener;
     maAudioSystemVtable.setChannelCount = maSetChannelCount;
     maAudioSystemVtable.groupLoad = maGroupLoad;
+    maAudioSystemVtable.groupUnload = maGroupUnload;
+    maAudioSystemVtable.setGroupGain = maSetGroupGain;
     maAudioSystemVtable.groupIsLoaded = maGroupIsLoaded;
     maAudioSystemVtable.createStream = maCreateStream;
     maAudioSystemVtable.destroyStream = maDestroyStream;
@@ -892,3 +953,5 @@ const AudioSystemVtable* MaAudioSystem_vtable(void) {
     maSetupVtable();
     return &maAudioSystemVtable;
 }
+
+#include "ufo50/audio_selftest.inc"

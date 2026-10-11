@@ -233,4 +233,17 @@ static RValue builtin_ufo_string_trim(VMContext* ctx, RValue* args, int32_t coun
     while(end>begin && isspace((unsigned char)text[end-1]))end--;
     memmove(text,text+begin,end-begin);text[end-begin]=0;return RValue_makeOwnedString(text);
 }
+static RValue builtin_ufo_audio_group_set_gain(VMContext* ctx, RValue* args, int32_t count) {
+    AudioSystem* audio = ctx->runner->audioSystem;
+    if (count >= 3 && audio->vtable->setGroupGain) {
+        int32_t time = RValue_toInt32(args[2]);
+        audio->vtable->setGroupGain(audio, RValue_toInt32(args[0]), RValue_toReal(args[1]), time > 0 ? time : 0);
+    }
+    return RValue_makeUndefined();
+}
+static RValue builtin_ufo_audio_group_unload(VMContext* ctx, RValue* args, int32_t count) {
+    AudioSystem* audio = ctx->runner->audioSystem;
+    if (count && audio->vtable->groupUnload) audio->vtable->groupUnload(audio, RValue_toInt32(args[0]));
+    return RValue_makeUndefined();
+}
 #undef REQUIRE_ARGC_AT_LEAST

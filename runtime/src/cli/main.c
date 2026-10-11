@@ -1,5 +1,8 @@
 #include <loop.h>
 #include "vm_builtins.h"
+#if defined(USE_MINIAUDIO) || defined(USE_SDL1_AUDIO)
+#include "ma_audio_system.h"
+#endif
 #include <getopt.h>
 #ifdef _WIN32
 #include <io.h>
@@ -555,6 +558,10 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_SW_RENDERER
     if (argc == 2 && strcmp(argv[1], "--compat-selftest") == 0)
         return Ufo50_runCompatibilityTests();
+#endif
+#if defined(USE_MINIAUDIO) || defined(USE_SDL1_AUDIO)
+    if (argc == 3 && strcmp(argv[1], "--audio-selftest") == 0)
+        return MaAudioSystem_runTests(argv[2]);
 #endif
     CommandLineArgs args;
     parseCommandLineArgs(&args, argc, argv);

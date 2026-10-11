@@ -15,6 +15,7 @@
 
 typedef struct {
     bool active;
+    int32_t groupIndex;
     int32_t soundIndex; // SOND resource that spawned this
     int32_t instanceId; // unique ID returned to GML
     ma_sound maSound; // miniaudio sound object
@@ -36,6 +37,10 @@ typedef struct {
 } AudioStreamEntry;
 
 typedef struct {
+    float current, target, start, remaining, duration;
+} AudioGroupGain;
+
+typedef struct {
     AudioSystem base;
     ma_engine engine;
     ma_device device;
@@ -45,6 +50,7 @@ typedef struct {
     AudioStreamEntry streams[MAX_AUDIO_STREAMS];
     ma_sound_group listenerGroups[MAX_LISTENERS];
     float listenerGains[MAX_LISTENERS];
+    AudioGroupGain* groupGains;
 } MaAudioSystem;
 
 MaAudioSystem* MaAudioSystem_create(DataWin* dataWin);
@@ -57,5 +63,6 @@ void MaAudioSystem_resetState(MaAudioSystem* ma);
 // Returns this backend's vtable, for overlay backends that inherit it and override
 // individual functions.
 const AudioSystemVtable* MaAudioSystem_vtable(void);
+int MaAudioSystem_runTests(const char* fixturePath);
 
 #endif /* _BS_MA_AUDIO_SYSTEM_H_ */

@@ -27,3 +27,13 @@ once, retaining their order, visibility and alpha. The fresh 8,000-frame owned
 game probe exits successfully in 1.60 seconds on the host, reaches
 `rm40_Traps` (Barbuta), and produces a gameplay frame. This is host/headless
 compatibility evidence; audio, physical controls and device FPS are unproven.
+
+## Audio chunk 2026-10-11
+
+The real miniaudio mixer passes synthetic WAV tests on the host and SP ARM32:
+sparse group IDs, repeated group loading, nonzero stereo PCM, independent group
+fades, unload while playing, and a safe rejection of unloaded sounds. Audio
+loads now retain group IDs and use lazy per-chunk data loading. The SDL1 callback
+also sizes mono underrun clearing by its actual channel count. This proves
+mixer behavior; a successful device output path and audible game sound are
+separate pending checks.
