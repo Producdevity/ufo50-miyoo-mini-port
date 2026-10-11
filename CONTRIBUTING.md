@@ -93,3 +93,15 @@ Packaging rejects dirty/stale source records, altered binaries, unsupported
 ELF ABIs/dependencies, RPATHs, and private game-data paths. Both development ZIPs
 include an exact `git archive` of the matching source commit. `SHA256SUMS` covers
 the ZIPs; each manifest identifies its target and binary/source hashes.
+
+For collection audio and draw-cadence diagnostics without a physical output device:
+
+```sh
+python3 scripts/test-library.py artifacts/host/butterscotch .local/gamefiles/data.win artifacts/evidence/audio30 --offline-audio
+python3 scripts/test-library.py artifacts/host/butterscotch .local/gamefiles/data.win artifacts/evidence/audio60 --offline-audio --render-fps 60
+```
+
+Offline mode advances the real mixer at simulated room time and records PCM
+counts without writing recordings. It cannot verify device output, perceived
+sound quality, or performance. Ordinary headless mode continues using no-op
+audio. `--fixed-delta-time` also permits simulated-time tests without audio.

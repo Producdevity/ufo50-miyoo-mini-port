@@ -44,6 +44,10 @@ typedef struct {
     AudioSystem base;
     ma_engine engine;
     ma_device device;
+    bool offline;
+    double offlineRemainder;
+    uint64_t offlineFrames, offlineNonzero;
+    float offlinePeak;
     SoundInstance instances[MAX_SOUND_INSTANCES];
     int32_t nextInstanceCounter;
     FileSystem* fileSystem;
@@ -54,6 +58,8 @@ typedef struct {
 } MaAudioSystem;
 
 MaAudioSystem* MaAudioSystem_create(DataWin* dataWin);
+MaAudioSystem* MaAudioSystem_createOffline(DataWin* dataWin);
+void MaAudioSystem_advanceOffline(MaAudioSystem* ma, double seconds);
 
 // Shared post-engine setup: resets instance slots and creates the listener sound
 // groups. Requires an initialized engine. Used by init and by backends that overlay

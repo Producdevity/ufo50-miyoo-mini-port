@@ -115,25 +115,30 @@ static void maInit(AudioSystem* audio, DataWin* dataWin, FileSystem* fileSystem)
     arrput(ma->base.audioGroups, dataWin);
     ma->fileSystem = fileSystem;
 
-    ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
-    deviceConfig.playback.format   = ma_format_f32;
-    deviceConfig.playback.channels = 2;
-    deviceConfig.periods           = 3;
-    deviceConfig.periodSizeInMilliseconds = 10;
-    deviceConfig.dataCallback = ma_engine_data_callback_internal;
-    deviceConfig.pUserData    = &ma->engine;
-    ma_result deviceResult = ma_device_init(NULL, &deviceConfig, &ma->device);
-    if (deviceResult != MA_SUCCESS) {
-        logError("Audio: Failed to initialize playback device (error %d)\n", deviceResult);
-        return;
-    }
     ma_engine_config config = ma_engine_config_init();
-    config.pDevice = &ma->device;
-    
+    if (ma->offline) {
+        config.noDevice = MA_TRUE;
+        config.channels = 2;
+        config.sampleRate = 44100;
+    } else {
+        ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
+        deviceConfig.playback.format = ma_format_f32;
+        deviceConfig.playback.channels = 2;
+        deviceConfig.periods = 3;
+        deviceConfig.periodSizeInMilliseconds = 10;
+        deviceConfig.dataCallback = ma_engine_data_callback_internal;
+        deviceConfig.pUserData = &ma->engine;
+        ma_result deviceResult = ma_device_init(NULL, &deviceConfig, &ma->device);
+        if (deviceResult != MA_SUCCESS) {
+            logError("Audio: Failed to initialize playback device (error %d)\n", deviceResult);
+            return;
+        }
+        config.pDevice = &ma->device;
+    }
     ma_result result = ma_engine_init(&config, &ma->engine);
     if (result != MA_SUCCESS) {
         logError("Audio: Failed to initialize miniaudio engine (error %d)\n", result);
-        ma_device_uninit(&ma->device);
+        if (!ma->offline) ma_device_uninit(&ma->device);
         return;
     }
 
@@ -176,7 +181,9 @@ static void maDestroy(AudioSystem* audio) {
     arrfree(ma->base.audioGroups);
     arrfree(ma->groupGains);
 
-    ma_device_uninit(&ma->device);
+    if (!ma->offline) ma_device_uninit(&ma->device);
+    if (ma->offline) logInfo("Offline audio: frames=%llu nonzero_samples=%llu peak=%f\n",
+        (unsigned long long)ma->offlineFrames, (unsigned long long)ma->offlineNonzero, ma->offlinePeak);
     ma_engine_uninit(&ma->engine);
     free(ma);
 }
@@ -268,7 +275,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
 
     if (isStream) {
         // Stream audio: load from file path stored in stream entry
-        result = ma_sound_init_from_file(&ma->engine, streamPath, MA_SOUND_FLAG_ASYNC, &ma->listenerGroups[0], nullptr, &slot->maSound);
+        result = ma_sound_init_from_file(&ma->engine, streamPath, ma->offline ? 0 : MA_SOUND_FLAG_ASYNC, &ma->listenerGroups[0], nullptr, &slot->maSound);
         if (result != MA_SUCCESS) {
             logWarn("Audio: Failed to load stream file '%s' (error %d)\n", streamPath, result);
             return -1;
@@ -317,7 +324,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
                 return -1;
             }
 
-            result = ma_sound_init_from_file(&ma->engine, path, MA_SOUND_FLAG_ASYNC, &ma->listenerGroups[0], nullptr, &slot->maSound);
+            result = ma_sound_init_from_file(&ma->engine, path, ma->offline ? 0 : MA_SOUND_FLAG_ASYNC, &ma->listenerGroups[0], nullptr, &slot->maSound);
             if (result != MA_SUCCESS) {
                 logWarn("Audio: Failed to load file for '%s' at '%s' (error %d)\n", sound->name, path, result);
                 free(path);
@@ -945,6 +952,31 @@ MaAudioSystem* MaAudioSystem_create(DataWin* dataWin) {
     maSetupVtable();
     ma->base.vtable = &maAudioSystemVtable;
     return ma;
+}
+
+MaAudioSystem* MaAudioSystem_createOffline(DataWin* dataWin) {
+    MaAudioSystem* ma = MaAudioSystem_create(dataWin);
+    ma->offline = true;
+    return ma;
+}
+
+void MaAudioSystem_advanceOffline(MaAudioSystem* ma, double seconds) {
+    require(ma->offline);
+    ma->offlineRemainder += seconds * 44100;
+    ma_uint64 frames = (ma_uint64)ma->offlineRemainder;
+    ma->offlineRemainder -= frames;
+    float pcm[512 * 2];
+    while (frames) {
+        ma_uint64 count = frames > 512 ? 512 : frames, read = 0;
+        require(ma_engine_read_pcm_frames(&ma->engine, pcm, count, &read) == MA_SUCCESS && read == count);
+        repeat(count * 2, i) {
+            float value = fabsf(pcm[i]);
+            if (value > 0.000001f) ma->offlineNonzero++;
+            if (value > ma->offlinePeak) ma->offlinePeak = value;
+        }
+        ma->offlineFrames += count;
+        frames -= count;
+    }
 }
 
 const AudioSystemVtable* MaAudioSystem_vtable(void) {

@@ -868,6 +868,14 @@ int loop(CommandLineArgs args, const char *argv0) {
 
         // Initialize the audio system
         AudioSystem* audioSystem = nullptr;
+        bool offlineAudio = false;
+#if defined(USE_SDL1_AUDIO) || defined(USE_MINIAUDIO)
+        offlineAudio = args.headless && getenv("UFO50_OFFLINE_AUDIO") &&
+                       strcmp(getenv("UFO50_OFFLINE_AUDIO"), "1") == 0;
+        if (offlineAudio) {
+            audioSystem = (AudioSystem*)MaAudioSystem_createOffline(dataWin);
+        } else
+#endif
         if (args.headless) {
             audioSystem = (AudioSystem*) NoopAudioSystem_create();
         } else {
@@ -985,6 +993,12 @@ int loop(CommandLineArgs args, const char *argv0) {
             uint64_t frameStartNow = nowNanos();
             runner->deltaTime = (int64_t)(frameStartNow - lastFrameStartTime) / 1000.0;
             lastFrameStartTime = frameStartNow;
+            // Explicit headless diagnostics use simulated time, independent of host speed.
+            if (args.headless && (offlineAudio || (getenv("UFO50_FIXED_DELTA_TIME") &&
+                strcmp(getenv("UFO50_FIXED_DELTA_TIME"), "1") == 0))) {
+                double hz = runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed;
+                runner->deltaTime = 1000000.0 / (hz > 0 ? hz : 60);
+            }
 
             // Clear last frame's pressed/released state, then poll new input events
             RunnerKeyboard_beginFrame(runner->keyboard);
@@ -1153,6 +1167,9 @@ int loop(CommandLineArgs args, const char *argv0) {
                 if (0.0f > dt) dt = 0.0f;
                 if (dt > 0.1f) dt = 0.1f; // cap delta to avoid huge fades on lag spikes
                 runner->audioSystem->vtable->update(runner->audioSystem, dt);
+#if defined(USE_SDL1_AUDIO) || defined(USE_MINIAUDIO)
+                if (offlineAudio) MaAudioSystem_advanceOffline((MaAudioSystem*)audioSystem, dt);
+#endif
 
                 // Dump full runner state if this frame was requested
                 if (hmget(args.dumpFrames, runner->frameCount)) {

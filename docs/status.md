@@ -296,3 +296,19 @@ Seeded 30/60 draw probes for Barbuta, Vainger, Star Waspir and Cyber Owls reach
 identical rooms and player/entity positions; their globals differ only in the
 three wall-clock timestamps. This is limited parity evidence, not a complete
 Draw-event semantics or full-collection gameplay certification.
+
+### Full collection offline audio diagnostics
+
+Explicit headless offline-audio mode initializes the real no-device miniaudio
+engine, uses simulated room time, synchronously resolves streamed files, and
+drains PCM each step. Normal interactive audio is unchanged. All 50 seeded
+6000-step room probes complete with nonzero PCM, totaling 220,579,380 mixed
+frames. Synthetic initialization, sample advancement, sparse groups, and fades
+pass under ASan/UBSan. Cyber Owls and Star Waspir instrumented audio probes pass;
+Vainger requires a longer instrumented timeout. These are host mixer/compatibility
+results, not physical speakers or exhaustive gameplay coverage.
+
+The full 30/60 real-mixer comparison exposes entity or RNG differences in some
+games. Skipping entire Draw-event passes is therefore not a valid general 30 FPS
+implementation. Preserving Draw-event semantics while reducing framebuffer work
+is a required follow-up before a distributable default is accepted.

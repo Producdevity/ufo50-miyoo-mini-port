@@ -8,15 +8,10 @@ int MaAudioSystem_runTests(const char* fixturePath) {
     data.agrp.count=3; data.agrp.audioGroups=groups;
     data.sond.count=1; data.sond.sounds=sounds;
     data.lazyLoadAudio=true;
-    MaAudioSystem* ma=MaAudioSystem_create(&data);
+    MaAudioSystem* ma=MaAudioSystem_createOffline(&data);
     AudioSystem* audio=(AudioSystem*)ma;
     OverlayFileSystem* fs=OverlayFileSystem_create(fixturePath, fixturePath);
-    ma->fileSystem=(FileSystem*)fs;
-    arrput(audio->audioGroups, &data);
-    ma_engine_config config=ma_engine_config_init();
-    config.noDevice=MA_TRUE; config.channels=2; config.sampleRate=44100;
-    require(ma_engine_init(&config, &ma->engine)==MA_SUCCESS);
-    MaAudioSystem_resetState(ma);
+    maInit(audio, &data, (FileSystem*)fs);
     maGroupLoad(audio, 2);
     require(maGroupIsLoaded(audio, 2) && !maGroupIsLoaded(audio, 1));
     maGroupLoad(audio, 2);
@@ -27,6 +22,8 @@ int MaAudioSystem_runTests(const char* fixturePath) {
     require(ma_engine_read_pcm_frames(&ma->engine, pcm, 512, &read)==MA_SUCCESS && read==512);
     float energy=0; repeat(1024, i) energy+=pcm[i]*pcm[i];
     require(energy>1);
+    MaAudioSystem_advanceOffline(ma, 0.05);
+    require(ma->offlineFrames == 2205 && ma->offlineNonzero > 0 && ma->offlinePeak > 0);
     maSetGroupGain(audio, 2, 0, 100);
     maUpdate(audio, 0.05f); require(fabsf(maGroupGain(ma, 2)-0.5f)<0.001f);
     maUpdate(audio, 0.05f); require(maGroupGain(ma, 2)==0);
