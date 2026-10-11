@@ -15,20 +15,6 @@
 // Forward decl for Instance_structDecRef
 struct Runner;
 
-typedef struct {
-    GMLReal left, right, top, bottom;
-    bool valid;
-} InstanceBBox;
-
-typedef struct {
-    const void* sprite;
-    float transform[5];
-    int32_t geometry[9];
-    bool compatibilityMode;
-    bool initialized;
-    InstanceBBox bbox;
-} InstanceBBoxCache;
-
 struct Instance {
     uint32_t instanceId;
     int32_t objectIndex;
@@ -65,7 +51,6 @@ struct Instance {
     float imageSpeed;
     float imageIndex; // Even though textureCount is unsigned, games CAN set the image_index to negative values
     float imageXscale, imageYscale, imageAngle, imageAlpha;
-    InstanceBBoxCache bboxCache;
     uint32_t imageBlend;
     int32_t depth;
     int32_t layer;
