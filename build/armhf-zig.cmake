@@ -1,0 +1,11 @@
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+get_filename_component(UFO50_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(CMAKE_C_COMPILER "${UFO50_ROOT}/scripts/zig-cc.sh")
+set(CMAKE_C_FLAGS_INIT "-I${UFO50_ROOT}/.local/deps/include")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,--allow-shlib-undefined")
+set(SDL_INCLUDE_DIR "${UFO50_ROOT}/.local/deps/include/SDL" CACHE PATH "SDL 1.2 headers")
+set(SDL_LIBRARY "${UFO50_ROOT}/.local/deps/lib/libSDL-1.2.so.0" CACHE FILEPATH "Miyoo SDL 1.2 link library")
+
+set(CMAKE_AR "${UFO50_ROOT}/runtime/artifacts/zig-ar")
+set(CMAKE_RANLIB "${UFO50_ROOT}/runtime/artifacts/zig-ranlib")

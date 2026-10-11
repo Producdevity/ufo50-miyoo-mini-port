@@ -1,0 +1,19 @@
+{
+  "butterscotch": {
+    "url": "https://github.com/cobaltgit/Butterscotch.git",
+    "commit": "92ed6b8c3766361a201a69d202bcde5873cdad7e",
+    "tag": "onion-v2",
+    "license": "AGPL-3.0"
+  },
+  "rhh_ufo50": {
+    "url": "https://github.com/JeodC/RHH-Ports",
+    "commit": "4fda6fb72929cc3860cad7145e78c1ff14817f37",
+    "path": "ports/released/gamemakerengine/ufo50",
+    "use": "Research reference; GML patches and binary runner not redistributed"
+  },
+  "sdl_headers": {
+    "url": "https://github.com/libsdl-org/SDL-1.2.git",
+    "commit": "f4feee6a91c4957560412f6e1135e5ff8f46791d",
+    "license": "LGPL-2.1-or-later"
+  }
+}

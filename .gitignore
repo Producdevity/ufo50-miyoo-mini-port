@@ -1,0 +1,6 @@
+.DS_Store
+.local/
+.agents/
+artifacts/
+__pycache__/
+*.pyc

@@ -1,0 +1,7 @@
+UFO 50 for Miyoo Mini incorporates the Butterscotch GameMaker runner.
+Upstream: https://github.com/cobaltgit/Butterscotch
+Base: onion-v2, commit 92ed6b8c3766361a201a69d202bcde5873cdad7e
+License: GNU Affero General Public License, version 3.
+The runtime includes its upstream notices and third-party license texts.
+UFO 50 is made by Mossmouth and must be purchased separately. No game assets are distributed.
+PortMaster/RHH UFO 50 scripts informed the research; their proprietary runner is not bundled.
