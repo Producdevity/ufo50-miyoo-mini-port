@@ -225,6 +225,54 @@ static RValue builtin_ufo_ds_grid_set_region(VMContext* ctx, RValue* args, int32
     return RValue_makeUndefined();
 }
 
+/* Region search follows GameMaker's inclusive, clamped, row-major traversal. */
+static bool ufoGridValuesEqual(RValue a, RValue b) {
+    bool aNumeric = a.type == RVALUE_REAL || a.type == RVALUE_INT32 ||
+                    a.type == RVALUE_BOOL || a.type == RVALUE_ASSETREF;
+    bool bNumeric = b.type == RVALUE_REAL || b.type == RVALUE_INT32 ||
+                    b.type == RVALUE_BOOL || b.type == RVALUE_ASSETREF;
+#ifndef NO_RVALUE_INT64
+    aNumeric |= a.type == RVALUE_INT64;
+    bNumeric |= b.type == RVALUE_INT64;
+#endif
+    if (aNumeric && bNumeric)
+        return GMLReal_fabs(RValue_toReal(a) - RValue_toReal(b)) < GML_MATH_EPSILON;
+    if (a.type == RVALUE_STRING && b.type == RVALUE_STRING)
+        return a.string && b.string && strcmp(a.string, b.string) == 0;
+    return false;
+}
+
+static int ufoGridFind(VMContext* ctx, RValue* args, int32_t count, int axis) {
+    if (count < 6) return -1;
+    DsGrid* grid = dsGridGet(ctx->runner, RValue_toInt32(args[0]));
+    if (!grid || grid->width <= 0 || grid->height <= 0) return -1;
+    int x1 = RValue_toInt32(args[1]), y1 = RValue_toInt32(args[2]);
+    int x2 = RValue_toInt32(args[3]), y2 = RValue_toInt32(args[4]);
+    if (x1 > x2) { int tmp = x1; x1 = x2; x2 = tmp; }
+    if (y1 > y2) { int tmp = y1; y1 = y2; y2 = tmp; }
+    x1 = x1 < 0 ? 0 : (x1 >= grid->width ? grid->width - 1 : x1);
+    x2 = x2 < 0 ? 0 : (x2 >= grid->width ? grid->width - 1 : x2);
+    y1 = y1 < 0 ? 0 : (y1 >= grid->height ? grid->height - 1 : y1);
+    y2 = y2 < 0 ? 0 : (y2 >= grid->height ? grid->height - 1 : y2);
+    for (int y = y1; y <= y2; y++) {
+        for (int x = x1; x <= x2; x++) {
+            if (ufoGridValuesEqual(grid->items[y * grid->width + x], args[5]))
+                return axis == 0 ? x : y;
+        }
+    }
+    return -1;
+}
+
+static RValue builtin_ufo_ds_grid_value_x(VMContext* ctx, RValue* args, int32_t count) {
+    return RValue_makeInt32(ufoGridFind(ctx, args, count, 0));
+}
+static RValue builtin_ufo_ds_grid_value_y(VMContext* ctx, RValue* args, int32_t count) {
+    return RValue_makeInt32(ufoGridFind(ctx, args, count, 1));
+}
+static RValue builtin_ufo_ds_grid_value_exists(VMContext* ctx, RValue* args, int32_t count) {
+    return RValue_makeBool(ufoGridFind(ctx, args, count, 0) >= 0);
+}
+
 static RValue builtin_ufo_string_trim(VMContext* ctx, RValue* args, int32_t count) {
     (void)ctx;
     if(count<1)return RValue_makeOwnedString(safeStrdup(""));

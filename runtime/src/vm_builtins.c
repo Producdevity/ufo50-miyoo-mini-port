@@ -17560,6 +17560,9 @@ void VMBuiltins_registerAll(VMContext* ctx) {
     VM_registerBuiltin(ctx, "array_shuffle", builtin_ufo_array_shuffle);
     VM_registerBuiltin(ctx, "ds_grid_clear", builtin_ufo_ds_grid_clear);
     VM_registerBuiltin(ctx, "ds_grid_set_region", builtin_ufo_ds_grid_set_region);
+    VM_registerBuiltin(ctx, "ds_grid_value_x", builtin_ufo_ds_grid_value_x);
+    VM_registerBuiltin(ctx, "ds_grid_value_y", builtin_ufo_ds_grid_value_y);
+    VM_registerBuiltin(ctx, "ds_grid_value_exists", builtin_ufo_ds_grid_value_exists);
     VM_registerBuiltin(ctx, "string_trim", builtin_ufo_string_trim);
     VM_registerBuiltin(ctx, "ds_list_sort", builtin_ds_list_sort);
     VM_registerBuiltin(ctx, "array_concat", builtin_array_concat);

@@ -16,7 +16,7 @@ int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(Ufo50FrameClock_deadline(1100, 1150, 100) == 1200);
     CHECK_TEST(Ufo50FrameClock_deadline(1000, 2500, 100) == 2500);
     uint32_t pixels[512];
-    repeat(512, i) pixels[i] = 0xff000000u | ((i % 16) * 0x10101u);
+    repeat(512, i) pixels[i] = ((i % 16) * 0x11111111u);
     SWTexture* paletted = swrCreateTexture((const uint8_t*)pixels, 32, 16);
     CHECK_TEST(paletted->indices && paletted->paletteCount == 16);
     repeat(512, i) CHECK_TEST(swrTexturePixel(paletted, i) == swrConvertPixelTexture(pixels[i]));
@@ -88,6 +88,23 @@ int Ufo50_runCompatibilityTests(void) {
     RValue gridCopy[] = {other, grid}; builtin_ds_grid_copy(ctx, gridCopy, 2);
     builtin_ds_grid_destroy(ctx, &grid, 1);
     CHECK_TEST(strcmp(dsGridGet(runner, RValue_toInt32(other))->items[3].string, "cell") == 0);
+    RValue search[] = {other, RValue_makeReal(1), RValue_makeReal(1),
+                       RValue_makeReal(-10), RValue_makeReal(-10), RValue_makeString("cell")};
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_x(ctx, search, 6)) == 0);
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_y(ctx, search, 6)) == 0);
+    CHECK_TEST(RValue_toBool(builtin_ufo_ds_grid_value_exists(ctx, search, 6)));
+    search[5] = RValue_makeString("missing");
+    CHECK_TEST(!RValue_toBool(builtin_ufo_ds_grid_value_exists(ctx, search, 6)));
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_x(ctx, search, 6)) == -1);
+    DsGrid* searched = dsGridGet(runner, RValue_toInt32(other));
+    RValue_free(&searched->items[1]); searched->items[1] = RValue_makeInt32(42);
+    RValue_free(&searched->items[2]); searched->items[2] = RValue_makeReal(42);
+    search[5] = RValue_makeReal(42);
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_x(ctx, search, 6)) == 1);
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_y(ctx, search, 6)) == 0);
+    search[1] = search[3] = RValue_makeReal(0);
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_y(ctx, search, 6)) == 1);
+    CHECK_TEST(RValue_toInt32(builtin_ufo_ds_grid_value_y(ctx, search, 5)) == -1);
     builtin_ds_grid_destroy(ctx, &other, 1); RValue_free(&clearArgs[1]);
 
     CHECK_TEST(fs->vtable->writeFileText(fs, "input.txt", "owned-file"));

@@ -133,3 +133,12 @@ simulation slowdown. A normal SP frontend run with real audio completes
 12,000 steps. The sustained Barbuta interval measured 29.996 presented FPS and 60.000 simulation Hz over 123.1 seconds.
 This is one SP scene with recorded inputs, not collection-wide or Mini
 performance acceptance. The final forced screenshot/dump is excluded.
+
+## Grid search chunk 2026-10-11
+
+Inclusive, row-major `ds_grid_value_x/y/exists` searches now handle reversed
+coordinates, clamped bounds, mixed numeric types, strings and no-match values.
+Independent regressions pass on host, SP ARM32 and ASan/UBSan. Palette tests
+also cover transparent and partial-alpha colors. Vainger's missing API
+warning is resolved; its offscreen atlas loading still prevents a successful
+room smoke test.
