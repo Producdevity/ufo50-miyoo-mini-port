@@ -62,6 +62,49 @@ int Ufo50_runCompatibilityTests(void) {
     AudioSystem* audio = (AudioSystem*) NoopAudioSystem_create();
     Runner* runner = Runner_create(&data, ctx, renderer, fs, audio, 1234);
 
+    /* Collision order survives nested creation/removal and instance_change. */
+    GameObject orderObjects[3] = {{.parentId = -1}, {.parentId = 0}, {.parentId = 0}};
+    DataWin orderData = {0}; orderData.objt.count = 3; orderData.objt.objects = orderObjects;
+    Instance** objectLists[3] = {0}, **exactLists[3] = {0}, **targetLists[3] = {0};
+    bool targetValid[3] = {0};
+    Runner orderRunner = {.dataWin = &orderData, .instancesByObject = objectLists,
+        .instancesByExactObject = exactLists, .collisionTargetsByObject = targetLists,
+        .collisionTargetsValid = targetValid};
+    Instance one = {.objectIndex = 2, .instanceId = 100002, .active = true, .spatialGridDirty = true};
+    Instance two = {.objectIndex = 1, .instanceId = 100003, .active = true, .spatialGridDirty = true};
+    Instance three = {.objectIndex = 1, .instanceId = 100001, .active = true, .spatialGridDirty = true};
+    Runner_addInstanceToObjectLists(&orderRunner, &one);
+    Runner_addInstanceToObjectLists(&orderRunner, &two);
+    int outer = Runner_pushCollisionTargets(&orderRunner, 0);
+    CHECK_TEST(orderRunner.instanceSnapshots[outer] == &two);
+    Runner_addInstanceToObjectLists(&orderRunner, &three);
+    int inner = Runner_pushCollisionTargets(&orderRunner, 0);
+    CHECK_TEST(orderRunner.instanceSnapshots[inner] == &three);
+    CHECK_TEST(orderRunner.instanceSnapshots[outer] == &two);
+    Runner_popInstanceSnapshot(&orderRunner, inner);
+    Runner_removeInstanceFromObjectLists(&orderRunner, &one);
+    one.objectIndex = 1;
+    Runner_addInstanceToObjectLists(&orderRunner, &one);
+    inner = Runner_pushCollisionTargets(&orderRunner, 0);
+    CHECK_TEST(orderRunner.instanceSnapshots[inner] == &three);
+    CHECK_TEST(orderRunner.instanceSnapshots[inner + 1] == &one);
+    CHECK_TEST(orderRunner.instanceSnapshots[inner + 2] == &two);
+    Runner_popInstanceSnapshot(&orderRunner, inner);
+    Runner_removeInstanceFromObjectLists(&orderRunner, &three);
+    inner = Runner_pushCollisionTargets(&orderRunner, 0);
+    CHECK_TEST(arrlen(orderRunner.instanceSnapshots) - inner == 2);
+    CHECK_TEST(orderRunner.instanceSnapshots[inner] == &one);
+    Runner_popInstanceSnapshot(&orderRunner, outer);
+    int creation = Runner_pushInstancesOfObject(&orderRunner, 0);
+    CHECK_TEST(orderRunner.instanceSnapshots[creation] == &two);
+    CHECK_TEST(orderRunner.instanceSnapshots[creation + 1] == &one);
+    Runner_popInstanceSnapshot(&orderRunner, creation);
+    Runner_clearAllObjectLists(&orderRunner);
+    CHECK_TEST(Runner_pushCollisionTargets(&orderRunner, 0) == 0);
+    CHECK_TEST(arrlen(orderRunner.instanceSnapshots) == 0);
+    repeat(3, i) { arrfree(objectLists[i]); arrfree(exactLists[i]); arrfree(targetLists[i]); }
+    arrfree(orderRunner.instanceSnapshots);
+
     /* Invalid metadata lookups must cross unloaded sparse audio groups safely. */
     Sound namedSound = {.name = "synthetic"};
     data.sond.count = 1; data.sond.sounds = &namedSound;

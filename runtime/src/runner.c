@@ -91,6 +91,7 @@ void Runner_addInstanceToObjectLists(Runner* runner, Instance* inst) {
     int32_t depth = 0;
     while (currentObj >= 0 && dataWin->objt.count > (uint32_t) currentObj && 32 > depth) {
         arrput(runner->instancesByObject[currentObj], inst);
+        runner->collisionTargetsValid[currentObj] = false;
         currentObj = dataWin->objt.objects[currentObj].parentId;
         depth++;
     }
@@ -120,6 +121,7 @@ void Runner_removeInstanceFromObjectLists(Runner* runner, Instance* inst) {
     int32_t depth = 0;
     while (currentObj >= 0 && dataWin->objt.count > (uint32_t) currentObj && 32 > depth) {
         removeInstanceFromList(&runner->instancesByObject[currentObj], inst);
+        runner->collisionTargetsValid[currentObj] = false;
         currentObj = dataWin->objt.objects[currentObj].parentId;
         depth++;
     }
@@ -133,6 +135,8 @@ void Runner_clearAllObjectLists(Runner* runner) {
     uint32_t count = runner->dataWin->objt.count;
     repeat(count, i) {
         arrsetlen(runner->instancesByObject[i], 0);
+        arrsetlen(runner->collisionTargetsByObject[i], 0);
+        runner->collisionTargetsValid[i] = false;
         if (runner->instancesByExactObject != nullptr) {
             arrsetlen(runner->instancesByExactObject[i], 0);
         }
@@ -2105,6 +2109,11 @@ void Runner_reset(Runner* runner) {
         runner->instancesByExactObject = (Instance ***)safeCalloc(runner->dataWin->objt.count, sizeof(Instance**));
     }
 
+    if (runner->collisionTargetsByObject == nullptr) {
+        runner->collisionTargetsByObject = (Instance ***)safeCalloc(runner->dataWin->objt.count, sizeof(Instance**));
+        runner->collisionTargetsValid = (bool*)safeCalloc(runner->dataWin->objt.count, sizeof(bool));
+    }
+
     // Reset builtin function state
     runner->mpPotMaxrot = 30.0;
     runner->mpPotStep = 10.0;
@@ -3180,6 +3189,28 @@ static int sortInstancesByObjectIndexThenInstanceIdAscending(const void* element
     return 0;
 }
 
+int32_t Runner_pushCollisionTargets(Runner* runner, int32_t targetObjIndex) {
+    int32_t base = (int32_t) arrlen(runner->instanceSnapshots);
+    if (targetObjIndex < 0 || (uint32_t)targetObjIndex >= runner->dataWin->objt.count)
+        return base;
+    if (!runner->collisionTargetsValid[targetObjIndex]) {
+        Instance** source = runner->instancesByObject[targetObjIndex];
+        int32_t count = (int32_t) arrlen(source);
+        Instance*** cached = &runner->collisionTargetsByObject[targetObjIndex];
+        arrsetlen(*cached, count);
+        if (count > 0) memcpy(*cached, source, (size_t)count * sizeof(Instance*));
+        if (count > 1) qsort(*cached, count, sizeof(Instance*), sortInstancesByObjectIndexThenInstanceIdAscending);
+        runner->collisionTargetsValid[targetObjIndex] = true;
+    }
+    Instance** source = runner->collisionTargetsByObject[targetObjIndex];
+    int32_t count = (int32_t) arrlen(source);
+    if (count > 0) {
+        arrsetlen(runner->instanceSnapshots, base + count);
+        memcpy(&runner->instanceSnapshots[base], source, (size_t)count * sizeof(Instance*));
+    }
+    return base;
+}
+
 static void dispatchCollisionEvents(Runner* runner) {
     DataWin* dataWin = runner->dataWin;
     // Iterate only the objects that have any collision event in their parent chain.
@@ -3215,11 +3246,10 @@ static void dispatchCollisionEvents(Runner* runner) {
                     continue;
 
                 // Iterate only the descendant-inclusive list for the target object via a snapshot, so nested user code (collision handlers calling instance_exists, with (...), etc.) can push/pop their own snapshots above ours without corrupting this iteration.
-                int32_t snapBase = Runner_pushInstancesOfObject(runner, targetObjIndex);
+                int32_t snapBase = Runner_pushCollisionTargets(runner, targetObjIndex);
                 int32_t snapEnd = (int32_t) arrlen(runner->instanceSnapshots);
 
-                // The YoYo Runner sorts it by the object index THEN by the instanceId
-                qsort(runner->instanceSnapshots + snapBase, snapEnd - snapBase, sizeof(Instance*), sortInstancesByObjectIndexThenInstanceIdAscending);
+                // Cached order matches the YoYo runner; this copy survives nested mutations.
 
                 for (int32_t snapIdx = snapBase; snapEnd > snapIdx; snapIdx++) {
                     Instance* other = runner->instanceSnapshots[snapIdx];
@@ -4591,9 +4621,14 @@ void Runner_free(Runner* runner) {
         uint32_t objectCount = runner->dataWin->objt.count;
         repeat(objectCount, i) {
             arrfree(runner->instancesByObject[i]);
+            arrfree(runner->collisionTargetsByObject[i]);
         }
         free(runner->instancesByObject);
         runner->instancesByObject = nullptr;
+        free(runner->collisionTargetsByObject);
+        runner->collisionTargetsByObject = nullptr;
+        free(runner->collisionTargetsValid);
+        runner->collisionTargetsValid = nullptr;
     }
 
     {

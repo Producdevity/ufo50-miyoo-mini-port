@@ -412,3 +412,23 @@ The SD installer backs up Onion's generated Ports list cache and removes it only
 after file verification, allowing the new `.port` entry to be discovered.
 Rollback restores the cache along with the original shortcut and installation.
 The existing Onion startup/swap configuration is left intact.
+
+### Complete native ARM32 collection sweep
+
+All 50 recorded 6,000-step paths enter their selected game and finish with
+nonzero PCM using the Mini build on the SP, Mini SDK SDL 1.2, and the card's
+loader/C libraries. The offline mixer produced 220,579,380 stereo frames.
+Peak process RSS was 83,431,424 bytes, including diagnostic state export.
+These are bounded compatibility paths; they do not establish Mini hardware
+FPS, physical audio output, or complete gameplay coverage.
+
+### Reuse collision target order
+
+Golfaria profiling found repeated collision-target sorting. Each target object
+now keeps a sorted candidate list, invalidated along the affected ancestor
+chains when instances are added, removed, or changed. Collision handlers still
+iterate independent snapshots; creation-order lists used elsewhere are intact.
+A synthetic regression covers nested snapshots, creation, removal, object
+changes and room-list clearing. All 50 host snapshots match the previous
+build exactly with the same seeded inputs and real offline mixer. ASan/UBSan
+compatibility tests pass. Device performance is checked separately.

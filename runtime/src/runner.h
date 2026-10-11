@@ -462,6 +462,9 @@ struct Runner {
     Instance*** instancesByObject;
     // Same as instancesByObject but each instance only appears in the bucket of its EXACT objectIndex (no ancestors). Used by event dispatch so we don't double-fire when both a child and its parent declare the same event.
     Instance*** instancesByExactObject;
+    // Collision target order is independent of creation order used by with/instance_find.
+    Instance*** collisionTargetsByObject;
+    bool* collisionTargetsValid;
     // Precomputed (eventType, eventSubtype) -> dense slot remap. Built once at Runner_create, never mutated.
     EventSlotMap eventSlotMap;
     // Precomputed per-object and per-slot CSR tables of resolved event handlers. Replaces the per-dispatch parent-chain walk in findEventCodeIdAndOwner.
@@ -716,6 +719,8 @@ void Runner_updateCameraViewSimple(GMLCamera* camera);
 // Invalid indices or empty buckets push zero entries (base == current arena length).
 // Pair with Runner_popInstanceSnapshot(runner, base) when done.
 int32_t Runner_pushInstancesOfObject(Runner* runner, int32_t targetObjIndex);
+// Collision snapshot sorted by concrete object index, then instance ID.
+int32_t Runner_pushCollisionTargets(Runner* runner, int32_t targetObjIndex);
 // Push a snapshot matching "target", which GML can pass in several forms: an object index (push the descendant-inclusive bucket), INSTANCE_ALL (push every instance in the room), or an instance ID >= 100000 (push that single instance if it exists).
 // Returns base offset for pairing with Runner_popInstanceSnapshot.
 int32_t Runner_pushInstancesForTarget(Runner* runner, int32_t target);
