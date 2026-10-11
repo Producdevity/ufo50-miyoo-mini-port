@@ -287,9 +287,11 @@ int Ufo50_runCompatibilityTests(void) {
     float rasterL, rasterT, rasterR, rasterB;
     CHECK_TEST(renderer->vtable->getRasterBounds(renderer, &rasterL, &rasterT, &rasterR, &rasterB));
     CHECK_TEST(rasterL == rasterR && rasterT == rasterB);
+    CHECK_TEST(renderer->vtable->isRasterSkipped(renderer));
     CHECK_TEST(renderer->vtable->setRenderTarget(renderer, surface, false));
     CHECK_TEST(renderer->vtable->getRasterBounds(renderer, &rasterL, &rasterT, &rasterR, &rasterB));
     CHECK_TEST(rasterR > rasterL && rasterB > rasterT);
+    CHECK_TEST(!renderer->vtable->isRasterSkipped(renderer));
     renderer->vtable->clearScreen(renderer, 0x00010203, 1);
     CHECK_TEST(swr->fb[0] == (swrConvertPixel(0x00010203) | TRANSPARENT_MASK));
     SWRenderer_setFrameRendering(renderer, true);

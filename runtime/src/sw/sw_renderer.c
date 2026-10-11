@@ -1138,6 +1138,10 @@ static int32_t SWRenderer_ensureApplicationSurface(Renderer* renderer, int32_t w
     return APPLICATION_SURFACE_ID;
 }
 
+static bool SWRenderer_isRasterSkipped(Renderer* renderer) {
+    return swrDiscardingMainFrame((SWRenderer*)renderer);
+}
+
 static bool SWRenderer_getRasterBounds(Renderer* renderer, float* left, float* top, float* right, float* bottom) {
     SWRenderer* swr = (SWRenderer*)renderer;
     if (swrDiscardingMainFrame(swr)) {
@@ -1299,6 +1303,7 @@ Renderer* SWRenderer_create(void)
     SWRenderer* swr = (SWRenderer*) safeCalloc(1, sizeof(SWRenderer));
     swr->base.vtable = &swrVtable;
     swrVtable.getRasterBounds = SWRenderer_getRasterBounds;
+    swrVtable.isRasterSkipped = SWRenderer_isRasterSkipped;
     swrVtable.init                     = SWRenderer_init;
     swrVtable.destroy                  = SWRenderer_destroy;
     swrVtable.beginFrame               = SWRenderer_beginFrame;

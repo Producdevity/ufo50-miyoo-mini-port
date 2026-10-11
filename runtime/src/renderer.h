@@ -121,6 +121,7 @@ typedef struct {
     // Optional conservative world bounds for raster-only tile culling.
     // An empty rectangle means the current target is not being rasterized.
     bool (*getRasterBounds)(Renderer* renderer, float* left, float* top, float* right, float* bottom);
+    bool (*isRasterSkipped)(Renderer* renderer);
     void (*drawSpriteTiled)(Renderer* renderer, int32_t tpagIndex, float originX, float originY, float x, float y, float xscale, float yscale, bool tileX, bool tileY, float roomW, float roomH, uint32_t color, float alpha);
     // Surface Functions
     int32_t (*createSurface)(Renderer* renderer, int32_t width, int32_t height);

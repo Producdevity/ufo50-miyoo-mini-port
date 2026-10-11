@@ -881,6 +881,12 @@ static void rebuildDrawableCacheIfDirty(Runner* runner) {
     }
 }
 
+static bool rasterTargetSkipped(Runner* runner) {
+    Renderer* renderer = runner->renderer;
+    return renderer != nullptr && renderer->vtable->isRasterSkipped != nullptr &&
+        renderer->vtable->isRasterSkipped(renderer);
+}
+
 void Runner_draw(Runner* runner) {
     Room* room = runner->currentRoom;
 
@@ -944,6 +950,7 @@ void Runner_draw(Runner* runner) {
         lastProcessedDrawKey = drawableKey(d);
 
         if (d->type == DRAWABLE_TILE) {
+            if (rasterTargetSkipped(runner)) continue;
             if (runner->renderer != nullptr) {
                 RoomTile* tile = &room->tiles[d->tileIndex];
                 // Skip tiles whose layer was hidden via tile_layer_hide(). Filtered here (not in the cache) so toggling layer visibility doesn't invalidate.
@@ -991,7 +998,7 @@ void Runner_draw(Runner* runner) {
             int32_t codeId = findEventCodeIdAndOwner(runner, inst->objectIndex, EVENT_DRAW, DRAW_NORMAL, &ownerObjectIndex);
             if (codeId >= 0) {
                 Runner_executeResolvedEvent(runner, inst, EVENT_DRAW, DRAW_NORMAL, codeId, ownerObjectIndex);
-            } else if (runner->renderer != nullptr) {
+            } else if (runner->renderer != nullptr && !rasterTargetSkipped(runner)) {
                 Renderer_drawSelf(runner->renderer, inst);
             }
         } else if (d->type == DRAWABLE_LAYER) {
@@ -1013,104 +1020,108 @@ void Runner_draw(Runner* runner) {
             ctx->currentInstance = savedInstance;
             ctx->currentEventType = savedEventType;
             ctx->currentEventSubtype = savedEventSubtype;
-            float layerOffsetX = runtimeLayer->xOffset;
-            float layerOffsetY = runtimeLayer->yOffset;
+            // Layer scripts always run. Only automatic raster operations can be
+            // skipped, and a begin script may have bound a user-created surface.
+            if (!rasterTargetSkipped(runner)) {
+                float layerOffsetX = runtimeLayer->xOffset;
+                float layerOffsetY = runtimeLayer->yOffset;
 
-            // Handle layer elements
-            if (runner->renderer != nullptr) {
-                float roomW = (float) runner->currentRoom->width;
-                float roomH = (float) runner->currentRoom->height;
-                size_t elementCount = arrlenu(runtimeLayer->elements);
-                repeat(elementCount, j) {
-                    RuntimeLayerElement* layerElement = &runtimeLayer->elements[j];
-                    if (layerElement->type == RuntimeLayerElementType_Background && layerElement->backgroundElement != nullptr) {
-                        renderBackgroundElement(runner, layerElement->backgroundElement, roomW, roomH, layerOffsetX, layerOffsetY);
+                // Handle layer elements
+                if (runner->renderer != nullptr) {
+                    float roomW = (float) runner->currentRoom->width;
+                    float roomH = (float) runner->currentRoom->height;
+                    size_t elementCount = arrlenu(runtimeLayer->elements);
+                    repeat(elementCount, j) {
+                        RuntimeLayerElement* layerElement = &runtimeLayer->elements[j];
+                        if (layerElement->type == RuntimeLayerElementType_Background && layerElement->backgroundElement != nullptr) {
+                            renderBackgroundElement(runner, layerElement->backgroundElement, roomW, roomH, layerOffsetX, layerOffsetY);
+                        }
                     }
                 }
-            }
 
-            // Parsed and runtime-created tile elements share the same draw path.
-            {
-                // Runtime elements retain parsed tile order and visibility. Traversing
-                // them directly avoids a full element search for every tile (O(n^2)).
-                size_t tileElementCount = arrlenu(runtimeLayer->elements);
-                repeat(tileElementCount, j) {
-                    if (runner->renderer != nullptr) {
-                        RuntimeLayerElement* tileEl = &runtimeLayer->elements[j];
-                        if (tileEl->type != RuntimeLayerElementType_Tile || !tileEl->tileElement || !tileEl->visible) continue;
-                        RoomTile* tile = tileEl->tileElement;
+                // Parsed and runtime-created tile elements share the same draw path.
+                {
+                    // Runtime elements retain parsed tile order and visibility. Traversing
+                    // them directly avoids a full element search for every tile (O(n^2)).
+                    size_t tileElementCount = arrlenu(runtimeLayer->elements);
+                    repeat(tileElementCount, j) {
+                        if (runner->renderer != nullptr) {
+                            RuntimeLayerElement* tileEl = &runtimeLayer->elements[j];
+                            if (tileEl->type != RuntimeLayerElementType_Tile || !tileEl->tileElement || !tileEl->visible) continue;
+                            RoomTile* tile = tileEl->tileElement;
 
-                        // Check if this tile's layer is hidden via tile_layer_hide()
-                        ptrdiff_t layerIdx = hmgeti(runner->tileLayerMap, tile->tileDepth);
-                        if (layerIdx >= 0 && !runner->tileLayerMap[layerIdx].value.visible) continue;
-                        float offsetX = 0.0f, offsetY = 0.0f;
-                        if (layerIdx >= 0) {
-                            offsetX = runner->tileLayerMap[layerIdx].value.offsetX;
-                            offsetY = runner->tileLayerMap[layerIdx].value.offsetY;
-                        }
+                            // Check if this tile's layer is hidden via tile_layer_hide()
+                            ptrdiff_t layerIdx = hmgeti(runner->tileLayerMap, tile->tileDepth);
+                            if (layerIdx >= 0 && !runner->tileLayerMap[layerIdx].value.visible) continue;
+                            float offsetX = 0.0f, offsetY = 0.0f;
+                            if (layerIdx >= 0) {
+                                offsetX = runner->tileLayerMap[layerIdx].value.offsetX;
+                                offsetY = runner->tileLayerMap[layerIdx].value.offsetY;
+                            }
 
 #ifdef ENABLE_VM_TRACING
-                        // Trace tile drawing if requested
-                        if (shlen(runner->vmContext->tilesToBeTraced) > 0) {
-                            DataWin* dataWin = runner->dataWin;
-                            const char* bgName = (tile->backgroundDefinition >= 0 && dataWin->bgnd.count > (uint32_t) tile->backgroundDefinition) ? dataWin->bgnd.backgrounds[tile->backgroundDefinition].name : "<none>";
-                            const char* roomName = room->name;
+                            // Trace tile drawing if requested
+                            if (shlen(runner->vmContext->tilesToBeTraced) > 0) {
+                                DataWin* dataWin = runner->dataWin;
+                                const char* bgName = (tile->backgroundDefinition >= 0 && dataWin->bgnd.count > (uint32_t) tile->backgroundDefinition) ? dataWin->bgnd.backgrounds[tile->backgroundDefinition].name : "<none>";
+                                const char* roomName = room->name;
 
-                            bool shouldTrace = shgeti(runner->vmContext->tilesToBeTraced, "*") != -1 || shgeti(runner->vmContext->tilesToBeTraced, bgName) != -1 || shgeti(runner->vmContext->tilesToBeTraced, roomName) != -1;
+                                bool shouldTrace = shgeti(runner->vmContext->tilesToBeTraced, "*") != -1 || shgeti(runner->vmContext->tilesToBeTraced, bgName) != -1 || shgeti(runner->vmContext->tilesToBeTraced, roomName) != -1;
 
-                            if (shouldTrace) {
-                                int32_t tpagIndex = Renderer_resolveObjectTPAGIndex(dataWin, tile);
-                                if (tpagIndex >= 0) {
-                                    TexturePageItem* tpag = &dataWin->tpag.items[tpagIndex];
-                                    logInfo("Runner: [%s] Drawing tile #%d bg=%s(%d) tpag(srcX=%d srcY=%d srcW=%d srcH=%d tgtX=%d tgtY=%d bndW=%d bndH=%d page=%d) tile(srcX=%d srcY=%d w=%u h=%u) at pos=(%d,%d) depth=%d\n", roomName, d->tileIndex, bgName, tile->backgroundDefinition, tpag->sourceX, tpag->sourceY, tpag->sourceWidth, tpag->sourceHeight, tpag->targetX, tpag->targetY, tpag->boundingWidth, tpag->boundingHeight, tpag->texturePageId, tile->sourceX, tile->sourceY, tile->width, tile->height, tile->x, tile->y, tile->tileDepth);
+                                if (shouldTrace) {
+                                    int32_t tpagIndex = Renderer_resolveObjectTPAGIndex(dataWin, tile);
+                                    if (tpagIndex >= 0) {
+                                        TexturePageItem* tpag = &dataWin->tpag.items[tpagIndex];
+                                        logInfo("Runner: [%s] Drawing tile #%d bg=%s(%d) tpag(srcX=%d srcY=%d srcW=%d srcH=%d tgtX=%d tgtY=%d bndW=%d bndH=%d page=%d) tile(srcX=%d srcY=%d w=%u h=%u) at pos=(%d,%d) depth=%d\n", roomName, d->tileIndex, bgName, tile->backgroundDefinition, tpag->sourceX, tpag->sourceY, tpag->sourceWidth, tpag->sourceHeight, tpag->targetX, tpag->targetY, tpag->boundingWidth, tpag->boundingHeight, tpag->texturePageId, tile->sourceX, tile->sourceY, tile->width, tile->height, tile->x, tile->y, tile->tileDepth);
 
-                                    // Warn if tile source rect exceeds TPAG content bounds
-                                    if ((uint32_t) (tile->sourceX + tile->width) > (uint32_t) tpag->sourceWidth || (uint32_t) (tile->sourceY + tile->height) > (uint32_t) tpag->sourceHeight) {
-                                        logWarn("Runner: [%s] Tile #%d source rect (%d,%d %ux%u) exceeds TPAG content bounds (%dx%d)\n", roomName, d->tileIndex, tile->sourceX, tile->sourceY, tile->width, tile->height, tpag->sourceWidth, tpag->sourceHeight);
+                                        // Warn if tile source rect exceeds TPAG content bounds
+                                        if ((uint32_t) (tile->sourceX + tile->width) > (uint32_t) tpag->sourceWidth || (uint32_t) (tile->sourceY + tile->height) > (uint32_t) tpag->sourceHeight) {
+                                            logWarn("Runner: [%s] Tile #%d source rect (%d,%d %ux%u) exceeds TPAG content bounds (%dx%d)\n", roomName, d->tileIndex, tile->sourceX, tile->sourceY, tile->width, tile->height, tpag->sourceWidth, tpag->sourceHeight);
+                                        }
+                                    } else {
+                                        logInfo("Runner: [%s] Drawing tile #%d bg=%s(%d) tpag=UNRESOLVED tile(srcX=%d srcY=%d w=%u h=%u) at pos=(%d,%d) depth=%d\n", roomName, d->tileIndex, bgName, tile->backgroundDefinition, tile->sourceX, tile->sourceY, tile->width, tile->height, tile->x, tile->y, tile->tileDepth);
                                     }
-                                } else {
-                                    logInfo("Runner: [%s] Drawing tile #%d bg=%s(%d) tpag=UNRESOLVED tile(srcX=%d srcY=%d w=%u h=%u) at pos=(%d,%d) depth=%d\n", roomName, d->tileIndex, bgName, tile->backgroundDefinition, tile->sourceX, tile->sourceY, tile->width, tile->height, tile->x, tile->y, tile->tileDepth);
                                 }
                             }
-                        }
 #endif
 
-                        RoomTile runtimeTile = *tile;
-                        runtimeTile.alpha = tileEl->alpha;
-                        Renderer_drawTile(runner->renderer, &runtimeTile, offsetX + layerOffsetX, offsetY + layerOffsetY);
+                            RoomTile runtimeTile = *tile;
+                            runtimeTile.alpha = tileEl->alpha;
+                            Renderer_drawTile(runner->renderer, &runtimeTile, offsetX + layerOffsetX, offsetY + layerOffsetY);
+                        }
                     }
-                }
 
-            }
-            RoomLayer* parsedLayer = Runner_findRoomLayerById(runner->currentRoom, (int32_t)runtimeLayer->id);
-            if (parsedLayer && parsedLayer->type == RoomLayerType_Assets) {
-                // Sprite elements are rendered from the runtime element list (not the parsed data) so that layer_sprite_destroy can remove them at runtime.
-                size_t elementCount = arrlenu(runtimeLayer->elements);
-                {
-                repeat(elementCount, j) {
-                    if (runner->renderer == nullptr) break;
-                    RuntimeLayerElement* el = &runtimeLayer->elements[j];
-                    if (el->type != RuntimeLayerElementType_Sprite || el->spriteElement == nullptr) continue;
-                    RuntimeSpriteElement* spr = el->spriteElement;
-                    if (0 > spr->spriteIndex) continue;
-                    Renderer_drawSpriteExt(
-                        runner->renderer, spr->spriteIndex, (int32_t) spr->frameIndex,
-                        (float) spr->x + layerOffsetX, (float) spr->y + layerOffsetY, spr->scaleX,
-                        spr->scaleY, spr->rotation, el->blend,
-                        el->alpha);
                 }
+                RoomLayer* parsedLayer = Runner_findRoomLayerById(runner->currentRoom, (int32_t)runtimeLayer->id);
+                if (parsedLayer && parsedLayer->type == RoomLayerType_Assets) {
+                    // Sprite elements are rendered from the runtime element list (not the parsed data) so that layer_sprite_destroy can remove them at runtime.
+                    size_t elementCount = arrlenu(runtimeLayer->elements);
+                    {
+                    repeat(elementCount, j) {
+                        if (runner->renderer == nullptr) break;
+                        RuntimeLayerElement* el = &runtimeLayer->elements[j];
+                        if (el->type != RuntimeLayerElementType_Sprite || el->spriteElement == nullptr) continue;
+                        RuntimeSpriteElement* spr = el->spriteElement;
+                        if (0 > spr->spriteIndex) continue;
+                        Renderer_drawSpriteExt(
+                            runner->renderer, spr->spriteIndex, (int32_t) spr->frameIndex,
+                            (float) spr->x + layerOffsetX, (float) spr->y + layerOffsetY, spr->scaleX,
+                            spr->scaleY, spr->rotation, el->blend,
+                            el->alpha);
+                    }
+                    }
+                } else if (parsedLayer && parsedLayer->type == RoomLayerType_Tiles) {
+                    if (runner->renderer == nullptr) continue;
+                    Runner_drawTileLayer(runner, parsedLayer->tilesData, layerOffsetX, layerOffsetY);
+                } else if (parsedLayer && parsedLayer->type == RoomLayerType_Background) {
+                    // Nothing to render here: handled above
+                } else if (parsedLayer && parsedLayer->type == RoomLayerType_Instances) {
+                    // Nothing to render here: handled above on the DRAWABLE_INSTANCE path
+                } else if (parsedLayer && (parsedLayer->type == RoomLayerType_Path || parsedLayer->type == RoomLayerType_Path2)) {
+                    // Nothing to render: not used for rendering purposes
+                } else if (parsedLayer && parsedLayer->type == RoomLayerType_Effect) {
+                    // TODO: Implement post-processing effect layers!
                 }
-            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Tiles) {
-                if (runner->renderer == nullptr) continue;
-                Runner_drawTileLayer(runner, parsedLayer->tilesData, layerOffsetX, layerOffsetY);
-            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Background) {
-                // Nothing to render here: handled above
-            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Instances) {
-                // Nothing to render here: handled above on the DRAWABLE_INSTANCE path
-            } else if (parsedLayer && (parsedLayer->type == RoomLayerType_Path || parsedLayer->type == RoomLayerType_Path2)) {
-                // Nothing to render: not used for rendering purposes
-            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Effect) {
-                // TODO: Implement post-processing effect layers!
             }
             ctx->currentInstance = ctx->globalScopeInstance;
             ctx->currentEventType = EVENT_DRAW;

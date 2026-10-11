@@ -464,3 +464,11 @@ instance between cells by changing its sprite origin, then expands its box.
 All 50 complete seeded host states match the previous build exactly; sanitized
 compatibility tests pass. The slower geometry-cache experiment was reverted
 after native performance testing.
+
+### Skip automatic traversal for discarded main frames
+
+The runner avoids default instance graphics and automatic layer element
+traversal when the software renderer is discarding the main frame. Draw events
+and both layer scripts still execute; a script that binds a user surface
+continues rendering into it. All 50 seeded host states and final PNGs match
+the previous build exactly, and sanitized compatibility tests pass.
