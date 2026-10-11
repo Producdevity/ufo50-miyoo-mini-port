@@ -280,4 +280,8 @@ void VMBuiltins_checkIfBuiltinVarTableIsSorted(void);
 RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVarId, const char* name, int32_t arrayIndex);
 void VMBuiltins_setVariable(VMContext* ctx, Instance* inst, int16_t builtinVarId, const char* name, RValue val, int32_t arrayIndex);
 
+#ifdef ENABLE_SW_RENDERER
+int Ufo50_runCompatibilityTests(void);
+#endif
+
 #endif /* _BS_VM_BUILTINS_H_ */

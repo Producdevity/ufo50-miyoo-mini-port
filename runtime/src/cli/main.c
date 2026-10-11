@@ -1,4 +1,5 @@
 #include <loop.h>
+#include "vm_builtins.h"
 #include <getopt.h>
 #ifdef _WIN32
 #include <io.h>
@@ -550,6 +551,10 @@ static void parseCommandLineArgs(CommandLineArgs* args, int argc, char* argv[]) 
 int main(int argc, char* argv[]) {
     setbuf(stderr, NULL);
 
+#ifdef ENABLE_SW_RENDERER
+    if (argc == 2 && strcmp(argv[1], "--compat-selftest") == 0)
+        return Ufo50_runCompatibilityTests();
+#endif
     CommandLineArgs args;
     parseCommandLineArgs(&args, argc, argv);
     logColour = !args.disableLogColours;

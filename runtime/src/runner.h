@@ -441,6 +441,7 @@ typedef struct { char* key; int32_t value; } AssetsByNameEntry;
 typedef struct { char* key; int value; } DisabledObjEntry;
 
 struct Runner {
+    GMLReal gameSpeedOverride;
     DataWin* dataWin;
     VMContext* vmContext;
     Renderer* renderer;

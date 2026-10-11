@@ -1303,7 +1303,7 @@ int loop(CommandLineArgs args, const char *argv0) {
                 }
                 fastForwardTabPrev = fastForwardTabNow;
                 double effectiveSpeed = (args.fastForwardSpeed > 0.0 && fastForwardActive) ? args.fastForwardSpeed : args.speedMultiplier;
-                uint64_t targetFrameTime = 1000000000 / (runner->currentRoom->speed * effectiveSpeed);
+                uint64_t targetFrameTime = 1000000000 / ((runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed) * effectiveSpeed);
                 uint64_t nextFrameTime = lastFrameTime + targetFrameTime;
                 platformSleepUntil(nextFrameTime);
             }

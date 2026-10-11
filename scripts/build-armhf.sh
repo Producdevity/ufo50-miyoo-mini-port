@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 
 [ -f .local/deps/include/SDL/SDL.h ] && [ -f .local/deps/lib/libSDL-1.2.so.0 ] || {

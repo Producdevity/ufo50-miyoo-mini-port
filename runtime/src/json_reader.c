@@ -179,6 +179,11 @@ static JsonValue* parseArray(JsonParser* parser) {
         skipWhitespace(parser);
         if (peek(parser) == ',') {
             advance(parser);
+            skipWhitespace(parser);
+            if (peek(parser) == ']') {
+                advance(parser);
+                return value;
+            }
         } else if (peek(parser) == ']') {
             advance(parser);
             return value;
@@ -256,6 +261,11 @@ static JsonValue* parseObject(JsonParser* parser) {
         skipWhitespace(parser);
         if (peek(parser) == ',') {
             advance(parser);
+            skipWhitespace(parser);
+            if (peek(parser) == '}') {
+                advance(parser);
+                return value;
+            }
         } else if (peek(parser) == '}') {
             advance(parser);
             return value;

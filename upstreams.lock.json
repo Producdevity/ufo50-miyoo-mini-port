@@ -15,5 +15,9 @@
     "url": "https://github.com/libsdl-org/SDL-1.2.git",
     "commit": "f4feee6a91c4957560412f6e1135e5ff8f46791d",
     "license": "LGPL-2.1-or-later"
+  },
+  "butterscotch_api_backports": {
+    "url": "https://github.com/ButterscotchRunner/Butterscotch",
+    "commit": "342371d447467cfa643b8987b57977bce8e8075c9"
   }
 }

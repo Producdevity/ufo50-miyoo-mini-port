@@ -16504,11 +16504,54 @@ static void ufoJsonEncode(VMContext* ctx, JsonWriter* w, RValue value, const voi
         JsonWriter_endArray(w);
     } else jsonEncodeValue(w,value,true);
 }
+static char* ufoJsonPrettify(const char* compact) {
+    StringBuilder out = StringBuilder_create(256);
+    unsigned depth = 0;
+    bool quoted = false, escaped = false;
+    for (const char* p = compact; *p; ++p) {
+        char c = *p;
+        if (quoted) {
+            StringBuilder_appendChar(&out, c);
+            if (escaped) escaped = false;
+            else if (c == '\\') escaped = true;
+            else if (c == '"') quoted = false;
+            continue;
+        }
+        if (c == '"') quoted = true;
+        if (c == '{' || c == '[') {
+            StringBuilder_appendChar(&out, c);
+            ++depth;
+            if (p[1] != '}' && p[1] != ']') {
+                StringBuilder_appendChar(&out, '\n');
+                repeat(depth, i) StringBuilder_appendChar(&out, '\t');
+            }
+        } else if (c == '}' || c == ']') {
+            --depth;
+            if (p > compact && p[-1] != '{' && p[-1] != '[') {
+                StringBuilder_appendChar(&out, '\n');
+                repeat(depth, i) StringBuilder_appendChar(&out, '\t');
+            }
+            StringBuilder_appendChar(&out, c);
+        } else if (c == ',') {
+            StringBuilder_append(&out, ",\n");
+            repeat(depth, i) StringBuilder_appendChar(&out, '\t');
+        } else {
+            StringBuilder_appendChar(&out, c);
+            if (c == ':') StringBuilder_appendChar(&out, ' ');
+        }
+    }
+    char* text = safeStrdup(out.buffer);
+    StringBuilder_free(&out);
+    return text;
+}
 static RValue builtin_json_stringify(VMContext* ctx, RValue* args, int32_t count) {
-    if (count != 1) { logWarn("json_stringify prototype supports one argument\n"); return RValue_makeUndefined(); }
+    if (count < 1 || count > 2) { logWarn("json_stringify: filter callbacks are not yet supported\n"); return RValue_makeUndefined(); }
     JsonWriter writer = JsonWriter_create(); const void* parents[128] = {0};
     ufoJsonEncode(ctx,&writer,args[0],parents,0);
     char* text = JsonWriter_copyOutput(&writer); JsonWriter_free(&writer);
+    if (count == 2 && RValue_toBool(args[1])) {
+        char* pretty = ufoJsonPrettify(text); free(text); text = pretty;
+    }
     return RValue_makeOwnedString(text);
 }
 static RValue builtin_struct_get_from_hash(VMContext* ctx, RValue* args, int32_t count) {
@@ -17508,7 +17551,26 @@ static RValue builtin_sprite_get_info(VMContext* ctx, RValue* args, int32_t argC
 
 // ===[ REGISTRATION ]===
 
+#include "ufo50/compat.inc"
+#ifdef ENABLE_SW_RENDERER
+#include "ufo50/selftest.inc"
+#endif
+
 void VMBuiltins_registerAll(VMContext* ctx) {
+    VM_registerBuiltin(ctx, "game_set_speed", builtin_ufo_game_set_speed);
+    VM_registerBuiltin(ctx, "struct_get", builtin_ufo_struct_get);
+    VM_registerBuiltin(ctx, "array_last", builtin_ufo_array_last);
+    VM_registerBuiltin(ctx, "array_shift", builtin_ufo_array_shift);
+    VM_registerBuiltin(ctx, "array_shuffle", builtin_ufo_array_shuffle);
+    VM_registerBuiltin(ctx, "ds_grid_clear", builtin_ufo_ds_grid_clear);
+    VM_registerBuiltin(ctx, "ds_grid_set_region", builtin_ufo_ds_grid_set_region);
+    VM_registerBuiltin(ctx, "string_trim", builtin_ufo_string_trim);
+    VM_registerBuiltin(ctx, "ds_list_sort", builtin_ds_list_sort);
+    VM_registerBuiltin(ctx, "array_concat", builtin_array_concat);
+    VM_registerBuiltin(ctx, "array_copy", builtin_array_copy);
+    VM_registerBuiltin(ctx, "@@array_get@@", builtin_internal_array_get);
+    VM_registerBuiltin(ctx, "file_copy", builtin_file_copy);
+    VM_registerBuiltin(ctx, "ds_grid_copy", builtin_ds_grid_copy);
     requireMessage(!ctx->registeredBuiltinFunctions, "Attempting to register all VMBuiltins, but it was already registered!");
     ctx->registeredBuiltinFunctions = true;
 
