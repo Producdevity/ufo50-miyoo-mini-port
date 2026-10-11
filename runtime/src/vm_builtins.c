@@ -16886,6 +16886,8 @@ static RValue fontAddSpriteImpl(VMContext* ctx, int32_t spriteIndex, uint16_t* c
     dw->font.fonts = (Font *)safeRealloc(dw->font.fonts, dw->font.count * sizeof(Font));
 
     Font* font = &dw->font.fonts[newFontIndex];
+    ZERO_STRUCT(*font);
+    font->present = true;
     font->name = "sprite_font";
     font->displayName = "sprite_font";
     font->emSize = (float)((maxHeight > 0) ? maxHeight : sprite->height);
@@ -18640,6 +18642,7 @@ void VMBuiltins_registerAll(VMContext* ctx) {
     VM_registerBuiltin(ctx, "json_encode", builtin_json_encode);
     VM_registerBuiltin(ctx, "font_add_sprite", builtin_font_add_sprite);
     VM_registerBuiltin(ctx, "font_add_sprite_ext", builtin_font_add_sprite_ext);
+    VM_registerBuiltin(ctx, "font_exists", builtin_ufo_font_exists);
     VM_registerBuiltin(ctx, "font_get_name", builtin_font_get_name);
     VM_registerBuiltin(ctx, "font_get_size", builtin_font_get_size);
     VM_registerBuiltin(ctx, "font_get_info", builtin_font_get_info);

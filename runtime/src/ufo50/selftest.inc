@@ -22,6 +22,17 @@ int Ufo50_runCompatibilityTests(void) {
     AudioSystem* audio = (AudioSystem*) NoopAudioSystem_create();
     Runner* runner = Runner_create(&data, ctx, renderer, fs, audio, 1234);
 
+    Font fonts[2] = {{0}, {0}};
+    fonts[0].present = true;
+    data.font.fonts = fonts; data.font.count = 2;
+    RValue fontArg = RValue_makeReal(0);
+    CHECK_TEST(RValue_toBool(builtin_ufo_font_exists(ctx, &fontArg, 1)));
+    fontArg = RValue_makeReal(1);
+    CHECK_TEST(!RValue_toBool(builtin_ufo_font_exists(ctx, &fontArg, 1)));
+    fontArg = RValue_makeReal(-1);
+    CHECK_TEST(!RValue_toBool(builtin_ufo_font_exists(ctx, &fontArg, 1)));
+    data.font.fonts = nullptr; data.font.count = 0;
+
     RValue jsonArgs[] = {RValue_makeString("{\"items\":[\"one\",{\"value\":42,},],\"flag\":true,}")};
     RValue parsed = builtin_json_parse(ctx, jsonArgs, 1);
     CHECK_TEST(parsed.type == RVALUE_STRUCT);

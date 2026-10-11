@@ -13,14 +13,16 @@ export PIPEWIRE_MODULE_DIR="/usr/lib32/pipewire-0.3"
 export SPA_PLUGIN_DIR="/usr/lib32/spa-0.2"
 export PIPEWIRE_RUNTIME_DIR="/run"
 export UFO50_INPUT_TRACE=1
+export UFO50_RENDER_FPS=30
+export UFO50_PERF_LOG=1
 export UFO50_SCREENSHOT="$run/frame.png"
-export UFO50_SCREENSHOT_FRAME=1799
+export UFO50_SCREENSHOT_FRAME=5999
 cd "$root/gamefiles"
 printf '%s\n' "$run" > "$root/last-run"
 # A bounded first launch records rendering, audio startup, input and room state.
 # Saves stay in this diagnostic run until gameplay compatibility is established.
-timeout 180 "$root/bin/butterscotch" data.win --renderer software \
+timeout 240 "$root/bin/butterscotch" data.win --renderer software \
   --lazy-rooms --lazy-textures --lazy-audio --load-type load-per-chunk \
-  --window-size 640x480 --save-folder "$run/saves" --trace-frames \
-  --exit-at-frame 1800 --dump-frame-json 1799 --dump-frame-json-file "$run/state.json" \
+  --window-size 640x480 --save-folder "$run/saves" \
+  --exit-at-frame 6000 --dump-frame-json 5999 --dump-frame-json-file "$run/state.json" \
   > "$run/runtime.log" 2>&1

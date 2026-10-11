@@ -246,4 +246,10 @@ static RValue builtin_ufo_audio_group_unload(VMContext* ctx, RValue* args, int32
     if (count && audio->vtable->groupUnload) audio->vtable->groupUnload(audio, RValue_toInt32(args[0]));
     return RValue_makeUndefined();
 }
+static RValue builtin_ufo_font_exists(VMContext* ctx, RValue* args, int32_t count) {
+    if (count < 1) return RValue_makeBool(false);
+    int32_t index = RValue_toInt32(args[0]);
+    return RValue_makeBool(index >= 0 && (uint32_t)index < ctx->dataWin->font.count &&
+                          ctx->dataWin->font.fonts[index].present);
+}
 #undef REQUIRE_ARGC_AT_LEAST

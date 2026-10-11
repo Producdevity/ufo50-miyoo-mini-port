@@ -68,3 +68,19 @@ The development entry has launched through the actual muOS Applications
 frontend and returned after its bounded test. Rendering and SDL audio
 initialization are confirmed; screen sizing, application-visible movement,
 nonzero game audio and sustained frame pacing remain under investigation.
+
+## Font selection and frontend gameplay chunk 2026-10-11
+
+`font_exists` now checks live font slots, and sprite-font creation initializes
+its slot and marks it present. Previously the game's guarded `scrSetFont`
+never selected its own sprite fonts. Host and SP ARM32 regression tests pass;
+the host menu probe now shows the game's text. TTF loading remains unsupported.
+
+A real muOS frontend launch reaches Barbuta. The measured SP d-pad produces
+GML right transitions and visible player displacement; face input advances
+startup and enters the game. SDL audio delivers 4,616,192 frames with
+2,056,680 nonzero samples, peak 0.639314, through a PipeWire stream linked to
+the codec speaker sink. This verifies digital output, not a physical listening
+test. Across 63 gameplay intervals, presented FPS has median 29.72, weighted
+mean 29.40, and minimum 25.95. The final screenshot/dump interval is excluded.
+The current 640x480 software draw path needs more performance headroom.
