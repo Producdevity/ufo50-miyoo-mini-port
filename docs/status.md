@@ -1,10 +1,33 @@
 # Development status
 
-2026-10-11: clean source import and build verified. The eight importer tests pass, and a fresh host build completes the existing 8,000-frame init/library/title/Cyber Owls intro path. This is a baseline, not a gameplay or hardware result.
+Updated 2026-10-11. The public source is on `master`; packages contain ARM32
+runtimes and their exact source, with game assets excluded.
 
-Current development target: RG35XX SP, muOS 2601.0 JACARANDA, build bc38efa0. User authorized device use. Goal: native ARM32 software rendering at 30 FPS with audio and application-visible controls, with a clean game-free release for Miyoo Mini.
+The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
+movement, jumping, attacking, pause, returning to the library, normal quit and
+persistent save reload. Digital audio reaches the codec sink. The measured
+Barbuta interval presents 29.996 FPS over 123 seconds; Cyber Owls presents
+29.980 FPS over 20 seconds. Vainger with ThinLTO and preserved Draw events
+averages 29.489 and 29.539 FPS in two sampled gameplay intervals.
 
-The earlier prototype has 65 unresolved function names and an ARM rendering discrepancy. These are open blockers. Actual gameplay, save reload, audio and frame timing must be verified before declaring the port working.
+All 50 seeded host room paths complete with the real offline audio mixer.
+Their complete recorded states match the 60 FPS baseline exactly. Draw events
+continue at the game logic rate; only main-frame rasterization and presentation
+are limited to 30 Hz. User-created surfaces continue updating every step.
+
+The Mini build is ARMv7 hard-float with no GLES/EGL dependency and requires
+at most GLIBC 2.17. The mounted card runs Onion v4.3.1-1. Its Ports importer,
+standalone launcher and keyboard conventions have been checked. Native ARM32
+compatibility and input selftests pass using Mini SDK SDL and the card's C
+libraries on the SP. Physical Mini display, sound, memory headroom and frame
+rates remain unmeasured. The SP has different hardware and more memory.
+These results cover recorded paths, not every level or feature of all 50 games.
+
+## Development log
+
+The entries below record successive milestones. Later fixes supersede earlier
+blockers and measurements; in particular, whole-Draw-pass skipping is no longer
+used.
 
 ## Compatibility chunk 2026-10-11
 
@@ -357,3 +380,14 @@ The native ARM32 compatibility and Mini-key mapping selftests pass on the SP
 with the Mini SDK SDL 1.2 and the mounted card's glibc/loader. This tests ABI and
 logic only. The card's hardware SDL also needs SigmaStar libraries supplied by
 Mini firmware; it cannot operate the SP's different display/audio hardware.
+
+### Save-preserving installation helper
+
+`deploy-miyoo.py` validates the clean source/build record, package CRC, ARM ABI,
+runtime and source archive hashes, and launcher/source files before SD writes.
+It archives the existing UFO 50 installation, shortcuts and saves, stages the
+new runtime plus owned assets, verifies every staged file, and promotes the
+staging directory. Final asset and save manifests must match the originals.
+Fixture tests cover preservation, backup contents, rollback after promotion,
+missing assets and refusal to replace existing owned inputs. Package archives
+now include an empty `gamefiles/` directory and plain copying instructions.

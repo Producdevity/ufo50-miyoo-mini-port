@@ -49,7 +49,8 @@ def package(target, source, output):
         (game / 'gamefiles').mkdir()
         (game / '_required_files.txt').write_text(
             'Supply your owned Windows UFO 50 assets in gamefiles/.\n'
-            'Use scripts/ufo50.py import on the host; see README.md.\n')
+            'Copy the Windows game folder contents here; data.win must be in gamefiles/.\n'
+            'See README.md for installation instructions.\n')
         for document in ['README.md', 'LICENSE', 'NOTICE']:
             shutil.copy2(ROOT / document, game / document)
         source_archive = stage / 'source.tar.gz'
@@ -69,7 +70,7 @@ def package(target, source, output):
         archive = output / name
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as package_zip:
             for file in sorted(stage.rglob('*')):
-                if file.is_file():
+                if file.is_file() or file == game / 'gamefiles':
                     package_zip.write(file, file.relative_to(stage))
         with zipfile.ZipFile(archive) as package_zip:
             if package_zip.testzip() is not None:

@@ -105,3 +105,16 @@ Offline mode advances the real mixer at simulated room time and records PCM
 counts without writing recordings. It cannot verify device output, perceived
 sound quality, or performance. Ordinary headless mode continues using no-op
 audio. `--fixed-delta-time` also permits simulated-time tests without audio.
+
+For a mounted Onion card, the deployment helper preserves an existing
+`gamefiles/` directory and saves. On a first install, supply an imported owned
+asset directory:
+
+```sh
+python3 scripts/deploy-miyoo.py --sd /Volumes/MIYOO --gamefiles .local/gamefiles
+```
+
+The helper checks the clean package/build provenance before writing and retains
+a recoverable backup under `artifacts/sd-backups/`. Verify the deployment report
+and eject the card safely. Installing verified files is separate from testing
+gameplay on the physical Mini.
