@@ -157,8 +157,26 @@ int Ufo50_runCompatibilityTests(void) {
     builtin_ufo_game_set_speed(ctx, speedArgs, 2);
     CHECK_TEST(runner->gameSpeedOverride == 50);
 
+    RValue depth = RValue_makeReal(-10);
+    RValue layer = builtin_layer_create(ctx, &depth, 1);
+    RValue tileArgs[] = {layer, RValue_makeReal(12), RValue_makeReal(34), RValue_makeReal(0),
+                        RValue_makeReal(4), RValue_makeReal(8), RValue_makeReal(16), RValue_makeReal(24)};
+    RValue tileId = builtin_layer_tile_create(ctx, tileArgs, 8);
+    RuntimeLayerElement* tile = Runner_findLayerElementById(runner, RValue_toInt32(tileId), nullptr);
+    CHECK_TEST(tile && tile->tileElementOwned && tile->tileElement->x == 12 && tile->tileElement->height == 24);
+    builtin_layer_tile_destroy(ctx, &tileId, 1);
+    CHECK_TEST(!Runner_findLayerElementById(runner, RValue_toInt32(tileId), nullptr));
+    builtin_layer_tile_destroy(ctx, &tileId, 1); // deleting a missing tile is harmless
+    builtin_layer_tile_create(ctx, tileArgs, 8); // runner teardown owns this tile
+    SWRenderer* swr = (SWRenderer*)renderer;
+    swr->textures[swr->textureCount] = swrCreateTexture(nullptr, 8, 8);
+    CHECK_TEST(swrEnsureTextureIsLoaded(swr, swr->textureCount));
+    renderer->vtable->beginFrame(renderer, 64, 64, 64, 64);
+    int surface = renderer->vtable->createSurface(renderer, 8, 8);
+    CHECK_TEST(surface >= 0 && renderer->vtable->setRenderTarget(renderer, surface, false));
     Runner_free(runner); VM_free(ctx);
     audio->vtable->destroy(audio); renderer->vtable->destroy(renderer); NoopFileSystem_destroy(fs);
+    free(data.tpag.items);
     logInfo("Compatibility selftests passed: nested JSON, formatting, overlapping arrays, grid ownership, file copy, timing\n");
     return 0;
 }

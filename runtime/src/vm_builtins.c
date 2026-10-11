@@ -17573,6 +17573,8 @@ void VMBuiltins_registerAll(VMContext* ctx) {
     VM_registerBuiltin(ctx, "@@array_get@@", builtin_internal_array_get);
     VM_registerBuiltin(ctx, "file_copy", builtin_file_copy);
     VM_registerBuiltin(ctx, "ds_grid_copy", builtin_ds_grid_copy);
+    VM_registerBuiltin(ctx, "layer_tile_create", builtin_layer_tile_create);
+    VM_registerBuiltin(ctx, "layer_tile_destroy", builtin_layer_tile_destroy);
     requireMessage(!ctx->registeredBuiltinFunctions, "Attempting to register all VMBuiltins, but it was already registered!");
     ctx->registeredBuiltinFunctions = true;
 

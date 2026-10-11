@@ -300,4 +300,72 @@ static RValue builtin_ufo_font_exists(VMContext* ctx, RValue* args, int32_t coun
     return RValue_makeBool(index >= 0 && (uint32_t)index < ctx->dataWin->font.count &&
                           ctx->dataWin->font.fonts[index].present);
 }
+static RValue builtin_layer_tile_create(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
+    REQUIRE_ARGC_AT_LEAST("layer_tile_create", 8, RValue_makeReal(-1.0));
+    Runner* runner = ctx->runner;
+    int32_t layerId = resolveLayerIdArg(runner, args[0]);
+    RuntimeLayer* runtimeLayer = Runner_findRuntimeLayerById(runner, layerId);
+    if (runtimeLayer == nullptr)
+        return RValue_makeReal(-1.0);
+
+    int32_t x = RValue_toInt32(args[1]);
+    int32_t y = RValue_toInt32(args[2]);
+    int32_t tileset = RValue_toInt32(args[3]);
+    int32_t left = RValue_toInt32(args[4]);
+    int32_t top = RValue_toInt32(args[5]);
+    int32_t width = RValue_toInt32(args[6]);
+    int32_t height = RValue_toInt32(args[7]);
+
+    RoomTile* tile = (RoomTile *)safeMalloc(sizeof(RoomTile));
+    ZERO_STRUCT(*tile);
+    tile->x = x;
+    tile->y = y;
+    tile->backgroundDefinition = tileset;
+    tile->useSpriteDefinition = DataWin_isVersionAtLeast(ctx->dataWin, 2, 0, 0, 0);
+    tile->sourceX = left;
+    tile->sourceY = top;
+    tile->width = (uint32_t)width;
+    tile->height = (uint32_t)height;
+    tile->tileDepth = runtimeLayer->depth;
+    tile->scaleX = 1.0f;
+    tile->scaleY = 1.0f;
+    tile->color = 0xFFFFFF;
+    tile->alpha = 1.0f;
+
+    RuntimeLayerElement el = {0};
+    el.id = Runner_getNextLayerId(runner);
+    el.type = RuntimeLayerElementType_Tile;
+    el.visible = true;
+    el.alpha = 1.0f;
+    el.blend = 0xFFFFFFu;
+    el.tileElement = tile;
+    el.tileElementOwned = true;
+    arrput(runtimeLayer->elements, el);
+    runner->drawableListStructureDirty = true;
+    return RValue_makeReal((GMLReal) el.id);
+}
+
+static RValue builtin_layer_tile_destroy(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
+    Runner* runner = ctx->runner;
+    int32_t id = RValue_toInt32(args[0]);
+    RuntimeLayer* owningLayer = nullptr;
+    RuntimeLayerElement* el = Runner_findLayerElementById(runner, id, &owningLayer);
+    if (el == nullptr || owningLayer == nullptr || el->type != RuntimeLayerElementType_Tile)
+        return RValue_makeUndefined();
+    if (el->tileElement != nullptr && el->tileElementOwned) {
+        free(el->tileElement);
+        el->tileElement = nullptr;
+        el->tileElementOwned = false;
+    }
+    size_t count = arrlenu(owningLayer->elements);
+    repeat(count, i) {
+        if (&owningLayer->elements[i] == el) {
+            arrdel(owningLayer->elements, i);
+            break;
+        }
+    }
+    return RValue_makeUndefined();
+}
+
+
 #undef REQUIRE_ARGC_AT_LEAST

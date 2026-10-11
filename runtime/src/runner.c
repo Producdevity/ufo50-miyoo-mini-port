@@ -28,6 +28,7 @@ void Runner_freeRuntimeLayer(RuntimeLayer* runtimeLayer) {
             free(el->backgroundElement);
             el->backgroundElement = nullptr;
         }
+        if (el->tileElementOwned) free(el->tileElement);
         if (el->spriteElement != nullptr) {
             free(el->spriteElement);
             el->spriteElement = nullptr;
@@ -1011,10 +1012,8 @@ void Runner_draw(Runner* runner) {
                 }
             }
 
-            // Everything after this point is static/parsed layers from the Room itself
-            RoomLayer* parsedLayer = Runner_findRoomLayerById(runner->currentRoom, (int32_t) runtimeLayer->id);
-            if (parsedLayer == nullptr) continue;
-            if (parsedLayer->type == RoomLayerType_Assets) {
+            // Parsed and runtime-created tile elements share the same draw path.
+            {
                 // Runtime elements retain parsed tile order and visibility. Traversing
                 // them directly avoids a full element search for every tile (O(n^2)).
                 size_t tileElementCount = arrlenu(runtimeLayer->elements);
@@ -1061,10 +1060,13 @@ void Runner_draw(Runner* runner) {
 
                         RoomTile runtimeTile = *tile;
                         runtimeTile.alpha = tileEl->alpha;
-                        Renderer_drawTile(runner->renderer, &runtimeTile, offsetX, offsetY);
+                        Renderer_drawTile(runner->renderer, &runtimeTile, offsetX + layerOffsetX, offsetY + layerOffsetY);
                     }
                 }
 
+            }
+            RoomLayer* parsedLayer = Runner_findRoomLayerById(runner->currentRoom, (int32_t)runtimeLayer->id);
+            if (parsedLayer && parsedLayer->type == RoomLayerType_Assets) {
                 // Sprite elements are rendered from the runtime element list (not the parsed data) so that layer_sprite_destroy can remove them at runtime.
                 size_t elementCount = arrlenu(runtimeLayer->elements);
                 {
@@ -1081,16 +1083,16 @@ void Runner_draw(Runner* runner) {
                         el->alpha);
                 }
                 }
-            } else if (parsedLayer->type == RoomLayerType_Tiles) {
+            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Tiles) {
                 if (runner->renderer == nullptr) continue;
                 Runner_drawTileLayer(runner, parsedLayer->tilesData, layerOffsetX, layerOffsetY);
-            } else if (parsedLayer->type == RoomLayerType_Background) {
+            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Background) {
                 // Nothing to render here: handled above
-            } else if (parsedLayer->type == RoomLayerType_Instances) {
+            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Instances) {
                 // Nothing to render here: handled above on the DRAWABLE_INSTANCE path
-            } else if (parsedLayer->type == RoomLayerType_Path || parsedLayer->type == RoomLayerType_Path2) {
+            } else if (parsedLayer && (parsedLayer->type == RoomLayerType_Path || parsedLayer->type == RoomLayerType_Path2)) {
                 // Nothing to render: not used for rendering purposes
-            } else if (parsedLayer->type == RoomLayerType_Effect) {
+            } else if (parsedLayer && parsedLayer->type == RoomLayerType_Effect) {
                 // TODO: Implement post-processing effect layers!
             }
             ctx->currentInstance = ctx->globalScopeInstance;

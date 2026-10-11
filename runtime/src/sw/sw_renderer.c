@@ -62,9 +62,13 @@ static void SWRenderer_destroy(Renderer* renderer)
 {
     SWRenderer* swr = (SWRenderer*) renderer;
     
-    // TODO: why didn't I implement this.
-    (void) swr;
-    
+    uintpixel_t* framebuffer = swr->drawingToSurface ? swr->mainFb : swr->fb;
+    repeat(swr->totalTextureCount, i) swrFreeTexture(swr->textures[i]);
+    repeat(swr->surfaceCount, i) swrFreeSurface(swr->surfaces[i]);
+    free(swr->textures);
+    free(swr->surfaces);
+    free(framebuffer);
+    free(swr);
     fprintf(stderr, "SWRenderer destroyed.\n");
 }
 

@@ -170,3 +170,14 @@ the report now retains visited rooms instead of treating that as a launch
 failure. Each probe executes 6,000 simulation steps, uses isolated saves,
 and renders at 30 Hz with no-op headless audio. These are compatibility
 smoke checks, not completed gameplay tests or device FPS acceptance.
+
+## Runtime tiles and cleanup chunk 2026-10-11
+
+Runtime tile creation/destruction is backported with explicit ownership.
+Created tiles use GMS2 sprite definitions and draw on dynamic layers.
+Missing/double deletes are harmless; room teardown frees owned elements.
+The atlas cache also recognizes generated surface sprites outside the
+original texture pages. Renderer teardown now frees textures, surfaces,
+framebuffer and metadata, including teardown while drawing to a surface.
+Host, SP ARM32 and ASan/UBSan regressions pass. Vainger, Mini & Max, Seaside
+Drive and Cyber Owls complete their post-change room probes.

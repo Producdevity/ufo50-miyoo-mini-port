@@ -247,6 +247,10 @@ bool platformInit(int reqW, int reqH, const char *title, bool headless) {
     return true;
 }
 
+#ifdef ENABLE_SW_RENDERER
+static SDL_Surface* nextFb;
+#endif
+
 void platformExit(void) {
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         if (openControllers[i]) {
@@ -254,6 +258,9 @@ void platformExit(void) {
             openControllers[i] = NULL;
         }
     }
+#ifdef ENABLE_SW_RENDERER
+    if (nextFb) { SDL_FreeSurface(nextFb); nextFb = nullptr; }
+#endif
     if (g_headless && scr) { SDL_FreeSurface(scr); scr = nullptr; }
     SDL_Quit();
 }
@@ -296,7 +303,7 @@ void platformInitFunctions(Runner *runner) {
 
 #ifdef ENABLE_SW_RENDERER
 
-static SDL_Surface* nextFb = NULL;
+
 
 void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
     if (nextFb) {

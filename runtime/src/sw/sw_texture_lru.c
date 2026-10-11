@@ -27,11 +27,12 @@ static bool trimTextureCache(SWRenderer* swr, size_t required) {
 }
 
 bool swrEnsureTextureIsLoaded(SWRenderer* swr, uint32_t pageId) {
-    if (pageId >= swr->textureCount) return false;
+    if (pageId >= swr->totalTextureCount) return false;
     if (swr->textures[pageId]) {
         swr->textures[pageId]->lastUsed = ++swr->textureAccessClock;
         return true;
     }
+    if (pageId >= swr->textureCount) return false;
     DataWin* dw = swr->base.dataWin;
     Texture* txtr = &dw->txtr.textures[pageId];
     const char* setting = getenv("UFO50_PALETTE_TEXTURES");
