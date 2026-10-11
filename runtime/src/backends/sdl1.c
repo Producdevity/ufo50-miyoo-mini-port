@@ -364,6 +364,7 @@ void platformInitFunctions(Runner *runner) {
 
 static SDL_Surface* nextFb = NULL;
 static SDL_Surface* convertFb = NULL;
+static Ufo50VideoScaler videoScaler;
 
 void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
     if (nextFb) {
@@ -390,6 +391,8 @@ static void freeSoftwareSurfaces(void) {
 #ifdef ENABLE_SW_RENDERER
     if (nextFb) { SDL_FreeSurface(nextFb); nextFb = NULL; }
     if (convertFb) { SDL_FreeSurface(convertFb); convertFb = NULL; }
+    free(videoScaler.columns);
+    memset(&videoScaler, 0, sizeof(videoScaler));
 #endif
 }
 
@@ -419,7 +422,7 @@ void platformSwapBuffers(void) {
             SDL_Rect dest = {(Sint16)((scr->w - width) / 2), (Sint16)((scr->h - height) / 2),
                              (Uint16)width, (Uint16)height};
             Ufo50_clearVideoBorders(scr, &dest);
-            if (SDL_SoftStretch(source, NULL, scr, &dest) < 0) {
+            if (Ufo50_stretchVideo(&videoScaler, source, scr, &dest) < 0) {
                 SDL_FillRect(scr, NULL, 0);
                 logError("Video: native framebuffer scaling failed: %s\n", SDL_GetError());
             }

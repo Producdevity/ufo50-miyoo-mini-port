@@ -489,3 +489,13 @@ pixels against the previous full-clear path in 48 cases, with both RGB565 and
 32-bit surfaces, asymmetric borders, and different previous contents. Both the
 SP library and Mini SDK library pass. Presentation time is recorded separately
 from drawing. Python and launcher checks pass.
+
+### Reuse display scaler samples
+
+The SDL1 display scaler caches horizontal source positions and copies repeated
+output rows. It preserves original SDL1 top-left samples and SDL12-compat's
+centered samples ([SDL12-compat](https://github.com/libsdl-org/sdl12-compat/blob/main/src/SDL12_compat.c),
+[SDL2 scaler](https://github.com/libsdl-org/SDL/blob/SDL2/src/video/SDL_stretch.c)).
+The 48 native pixel comparisons pass independently with each library, including
+cache rebuilds between different source sizes and display rectangles. This
+changes presentation only; game surfaces and Draw events use the same renderer.
