@@ -391,3 +391,14 @@ staging directory. Final asset and save manifests must match the originals.
 Fixture tests cover preservation, backup contents, rollback after promotion,
 missing assets and refusal to replace existing owned inputs. Package archives
 now include an empty `gamefiles/` directory and plain copying instructions.
+
+### Isolate SDL1 headless input
+
+Explicit headless SDL1 mode no longer opens joysticks or polls physical input.
+Recorded inputs still feed the runner directly; interactive input is unchanged.
+On the SP with Mini SDK SDL, the first two 6,000-step real-mixer paths now
+complete in 27.2 and 17.7 seconds, compared with roughly 100 seconds when SDL
+polled the SP's input devices. Their complete state snapshots and PCM counts
+match the earlier runs. Native compatibility and Mini key-mapping selftests
+pass. All 36 referenced SDL symbols are exported by the mounted card's SDL.
+This isolates the ABI/logic probe; it does not simulate the Mini's device timing.

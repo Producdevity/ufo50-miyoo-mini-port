@@ -281,13 +281,13 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
     }
 
     // Init SDL
-    if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_JOYSTICK | (headless ? 0 : SDL_INIT_VIDEO))) {
+    if (SDL_Init(SDL_INIT_TIMER | (headless ? 0 : SDL_INIT_JOYSTICK | SDL_INIT_VIDEO))) {
         logError("Failed to initialize SDL: %s\n", SDL_GetError());
         return false;
     }
 
     SDL_JoystickEventState(SDL_IGNORE);
-    int numJoysticks = SDL_NumJoysticks();
+    int numJoysticks = headless ? 0 : SDL_NumJoysticks();
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         memset(&joystickMappings[i], 0, sizeof(GamepadMapping));
         joystickMappings[i].valid = false;
@@ -558,6 +558,8 @@ static int32_t SDLMouseButtonToGml(int sdlButton) {
 }
 
 bool platformHandleEvents(void) {
+    // Headless probes receive input recordings directly and never poll devices.
+    if (g_headless) return false;
     SDL_JoystickUpdate();
 
     g_runner->gamepads->connectedCount = 0;
