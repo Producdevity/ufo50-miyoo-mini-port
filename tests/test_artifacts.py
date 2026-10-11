@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from artifact import inspect_arm32
+from package import check_performance_build
 
 
 def elf_fixture(machine=40, flags=0x05000400, version='GLIBC_2.17', rpath=False):
@@ -59,6 +60,30 @@ class Artifacts(unittest.TestCase):
     def test_truncated_binary(self):
         with self.assertRaises(ValueError):
             self.inspect(elf_fixture()[:-1])
+
+
+class PerformanceBuilds(unittest.TestCase):
+    def record(self):
+        return {'diagnostic_features': {key: 'OFF' for key in
+            ['ENABLE_VM_TRACING', 'ENABLE_VM_GML_PROFILER', 'ENABLE_VM_OPCODE_PROFILER']},
+            'interprocedural_optimization': True}
+
+    def test_rejects_each_diagnostic_feature(self):
+        check_performance_build(self.record())
+        for feature in self.record()['diagnostic_features']:
+            with self.subTest(feature=feature):
+                record = self.record(); record['diagnostic_features'][feature] = 'ON'
+                with self.assertRaisesRegex(ValueError, 'profiling'):
+                    check_performance_build(record)
+
+    def test_rejects_missing_build_settings(self):
+        for key in ['diagnostic_features', 'interprocedural_optimization']:
+            record = self.record(); del record[key]
+            with self.assertRaises(ValueError):
+                check_performance_build(record)
+        record = self.record(); record['interprocedural_optimization'] = False
+        with self.assertRaisesRegex(ValueError, 'optimization'):
+            check_performance_build(record)
 
 
 if __name__ == '__main__':

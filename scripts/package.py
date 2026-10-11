@@ -11,6 +11,15 @@ from pathlib import Path
 from artifact import ROOT, inspect_arm32, sha256, source_state
 
 
+def check_performance_build(record):
+    expected = {'ENABLE_VM_TRACING', 'ENABLE_VM_GML_PROFILER', 'ENABLE_VM_OPCODE_PROFILER'}
+    features = record.get('diagnostic_features', {})
+    if set(features) != expected or any(value != 'OFF' for value in features.values()):
+        raise ValueError('Disable VM tracing and profiling before packaging')
+    if record.get('interprocedural_optimization') is not True:
+        raise ValueError('Enable interprocedural optimization before packaging')
+
+
 def build_record(target, source):
     binary = ROOT / 'artifacts' / target / 'butterscotch'
     record = json.loads((binary.parent / 'build.json').read_text())
@@ -20,6 +29,7 @@ def build_record(target, source):
         raise ValueError('Binary differs from its recorded successful build')
     if record['elf'] != inspect_arm32(binary):
         raise ValueError('ELF ABI differs from the build record')
+    check_performance_build(record)
     return binary, record
 
 

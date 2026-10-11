@@ -13,8 +13,8 @@ reload and quitting work. Tested scenes run around 30 FPS; Vainger averages
 2. Extract `ufo50-miyoo-mini-development.zip` to the root of your SD card.
 3. Open your Windows UFO 50 installation folder. In Steam, right-click the game
    and choose **Manage → Browse local files**.
-4. Create `Roms/PORTS/Games/UFO50/gamefiles` on the SD card. Copy the contents of
-   the Windows game folder into it. Keep the audio groups, texture files, fonts
+4. Copy the contents of the Windows game folder into
+   `Roms/PORTS/Games/UFO50/gamefiles` on the SD card. Keep the audio groups, texture files, fonts
    and language folders together. The Windows executable is not needed.
 5. Run **~Import ports** in Onion's Ports collection, then open **Action → UFO50**.
 

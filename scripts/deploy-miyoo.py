@@ -185,7 +185,12 @@ def deploy(sd, package, gamefiles, backup_root):
             with tarfile.open(backup / 'previous.tar.gz') as archive:
                 for member in archive.getmembers():
                     if member.name in [SHORTCUT + '.port', SHORTCUT + '.notfound', CACHE]:
-                        archive.extract(member, sd, filter='data')
+                        if not member.isfile():
+                            raise ValueError('Unexpected backup member type')
+                        destination = sd / member.name
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        with archive.extractfile(member) as source, destination.open('wb') as output:
+                            shutil.copyfileobj(source, output)
         raise
     finally:
         if staged.exists():
