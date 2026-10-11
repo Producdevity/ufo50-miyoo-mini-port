@@ -95,3 +95,24 @@ actual display surface. The SP frontend launch renders the complete UI and
 Barbuta scene in this mode, with nonzero real audio output. Frame telemetry
 and screenshots are retained outside Git. This is SP evidence; Mini hardware
 performance and collection-wide gameplay remain unverified.
+
+## Integer interpreter chunk 2026-10-11
+
+Typed 64-bit AND/OR/XOR/NOT and shifts now retain their width. Previously
+the VM narrowed them to 32 bits, so the game's unsigned 32-bit RNG result
+became negative and produced invalid shop indexes. Shift sign extension is
+explicit, and integer add/subtract/multiply wrap without signed C overflow.
+Independent mask/shift regressions pass on host, SP ARM32, and ASan/UBSan.
+The seeded Bug Hunter and Velgress probes now complete 6,000 steps; they
+previously stalled or aborted. This is headless compatibility evidence.
+
+SDL2 software diagnostics now use an offscreen surface, without initializing
+video or opening hidden GPU windows. Array errors include the script name.
+The collection sweep uses menu inputs with isolated saves and distinguishes
+a game room from a title/high-score screen. Vainger still thrashes the 24 MiB
+RGBA texture cache, so larger atlas working sets need a memory improvement.
+
+A five-second capture from the SP codec speaker sink contains 430,080 stereo
+samples at 44.1 kHz, 429,963 nonzero, peak 19,311, RMS 4,224. This confirms
+real game audio reaches the output sink; the physical speaker listening
+check remains separate.

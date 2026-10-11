@@ -310,6 +310,7 @@ void VM_reset(VMContext* ctx);
 RValue VM_executeCode(VMContext* ctx, int32_t codeIndex);
 RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t argCount);
 void VM_free(VMContext* ctx);
+int VM_runIntegerTests(VMContext* ctx);
 bool VM_isObjectOrDescendant(DataWin* dataWin, int32_t objectIndex, int32_t targetObjectIndex);
 int32_t VM_resolveInstanceTarget(VMContext* ctx, int32_t target);
 void VM_buildCrossReferences(VMContext* ctx);

@@ -17,6 +17,7 @@ int Ufo50_runCompatibilityTests(void) {
     data.gen8.defaultWindowWidth = 64;
     data.gen8.defaultWindowHeight = 64;
     VMContext* ctx = VM_create(&data);
+    CHECK_TEST(VM_runIntegerTests(ctx) == 0);
     Renderer* renderer = SWRenderer_create();
     FileSystem* fs = NoopFileSystem_create();
     AudioSystem* audio = (AudioSystem*) NoopAudioSystem_create();

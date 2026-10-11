@@ -17,13 +17,13 @@ export UFO50_RENDER_FPS=30
 export UFO50_NATIVE_RESOLUTION=384x216
 export UFO50_PERF_LOG=1
 export UFO50_SCREENSHOT="$run/frame.png"
-export UFO50_SCREENSHOT_FRAME=5999
+export UFO50_SCREENSHOT_FRAME=11999
 cd "$root/gamefiles"
 printf '%s\n' "$run" > "$root/last-run"
 # A bounded first launch records rendering, audio startup, input and room state.
 # Saves stay in this diagnostic run until gameplay compatibility is established.
-timeout 240 "$root/bin/butterscotch" data.win --renderer software \
+timeout 300 "$root/bin/butterscotch" data.win --renderer software \
   --lazy-rooms --lazy-textures --lazy-audio --load-type load-per-chunk \
   --window-size 640x480 --save-folder "$run/saves" \
-  --exit-at-frame 6000 --dump-frame-json 5999 --dump-frame-json-file "$run/state.json" \
+  --exit-at-frame 12000 --dump-frame-json 11999 --dump-frame-json-file "$run/state.json" \
   > "$run/runtime.log" 2>&1

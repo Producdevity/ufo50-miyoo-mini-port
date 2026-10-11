@@ -260,7 +260,7 @@ static void cowForkSlotForModificationIfNeeded(VMContext* ctx, RValue* slot) {
 // Returns the (possibly newly-forked) GMLArray* now in *slot.
 static GMLArray* VM_arraySetWithCoW(VMContext* ctx, RValue* slot, int32_t index, RValue val) {
     require(slot != nullptr);
-    requireMessageFormatted(__FILE__, __LINE__, index >= 0, "Trying to write to an array using a negative index! Index: %d", index);
+    requireMessageFormatted(__FILE__, __LINE__, index >= 0, "[%s] Trying to write to an array using a negative index! Index: %d", ctx->currentCodeName, index);
 
     RValue writeVal = RValue_makeIndependent(val);
 
@@ -1606,23 +1606,31 @@ static void handleMod(VMContext* ctx, uint32_t instr) {
     stackPushTyped(ctx, RValue_makeReal(result), instrType2(instr));
 }
 
-#define SIMPLE_BYTECODE_BITWISE_OPERATION(op) \
-    int32_t b = stackPopInt32(ctx); \
-    int32_t a = stackPopInt32(ctx); \
-    int32_t result = a op b; \
-    stackPushTyped(ctx, RValue_makeInt32(result), instrType2(instr))
+static bool wideIntegerOperation(uint32_t instr, RValue a, RValue b) {
+    return instrType1(instr) == GML_TYPE_INT64 || instrType2(instr) == GML_TYPE_INT64 ||
+           a.type == RVALUE_INT64 || b.type == RVALUE_INT64;
+}
+
+#define BYTECODE_BITWISE_OPERATION(op) \
+    RValue b = stackPop(ctx), a = stackPop(ctx); \
+    bool wide = wideIntegerOperation(instr, a, b); \
+    RValue result = wide ? RValue_makeInt64(RValue_toInt64(a) op RValue_toInt64(b)) : \
+                          RValue_makeInt32(RValue_toInt32(a) op RValue_toInt32(b)); \
+    RValue_free(&a); RValue_free(&b); \
+    stackPushTyped(ctx, result, instrType2(instr))
 
 static void handleAnd(VMContext* ctx, uint32_t instr) {
-    SIMPLE_BYTECODE_BITWISE_OPERATION(&);
+    BYTECODE_BITWISE_OPERATION(&);
 }
 
 static void handleOr(VMContext* ctx, uint32_t instr) {
-    SIMPLE_BYTECODE_BITWISE_OPERATION(|);
+    BYTECODE_BITWISE_OPERATION(|);
 }
 
 static void handleXor(VMContext* ctx, uint32_t instr) {
-    SIMPLE_BYTECODE_BITWISE_OPERATION(^);
+    BYTECODE_BITWISE_OPERATION(^);
 }
+#undef BYTECODE_BITWISE_OPERATION
 
 static void handleNeg(VMContext* ctx, uint32_t instr) {
     RValue a = stackPop(ctx);
@@ -1632,28 +1640,77 @@ static void handleNeg(VMContext* ctx, uint32_t instr) {
 }
 
 static void handleNot(VMContext* ctx, uint32_t instr) {
-    uint8_t resultType = instrType1(instr);
-    int32_t a = stackPopInt32(ctx);
-    if (GML_TYPE_BOOL == resultType) {
-        // Logical NOT: compiler emits this for the ! operator on boolean expressions
-        int32_t result = (a == 0) ? 1 : 0;
-        stackPushTyped(ctx, RValue_makeBool(result != 0), resultType);
-    } else {
-        // Bitwise NOT: used for ~ operator on integer types
-        int32_t result = ~a;
-        stackPushTyped(ctx, RValue_makeInt32(result), resultType);
-    }
+    uint8_t type = instrType1(instr);
+    RValue a = stackPop(ctx), result;
+    if (type == GML_TYPE_BOOL) result = RValue_makeBool(!RValue_toBool(a));
+    else if (type == GML_TYPE_INT64 || a.type == RVALUE_INT64)
+        result = RValue_makeInt64(~RValue_toInt64(a));
+    else result = RValue_makeInt32(~RValue_toInt32(a));
+    RValue_free(&a);
+    stackPushTyped(ctx, result, type);
 }
 
 static void handleShl(VMContext* ctx, uint32_t instr) {
-    RValue b = stackPop(ctx), a = stackPop(ctx);
-    uint32_t result = (uint32_t)RValue_toInt32(a) << ((uint32_t)RValue_toInt32(b) & 31u);
+    RValue b = stackPop(ctx), a = stackPop(ctx), result;
+    if (wideIntegerOperation(instr, a, b)) {
+        uint64_t bits = (uint64_t)RValue_toInt64(a);
+        unsigned shift = (unsigned)RValue_toInt64(b) & 63u;
+        result = RValue_makeInt64((int64_t)(bits << shift));
+    } else {
+        uint32_t bits = (uint32_t)RValue_toInt32(a);
+        unsigned shift = (unsigned)RValue_toInt32(b) & 31u;
+        result = RValue_makeInt32((int32_t)(bits << shift));
+    }
     RValue_free(&a); RValue_free(&b);
-    stackPushTyped(ctx, RValue_makeInt32((int32_t)result), instrType2(instr));
+    stackPushTyped(ctx, result, instrType2(instr));
 }
 
 static void handleShr(VMContext* ctx, uint32_t instr) {
-    SIMPLE_BYTECODE_BITWISE_OPERATION(>>);
+    RValue b = stackPop(ctx), a = stackPop(ctx), result;
+    if (wideIntegerOperation(instr, a, b)) {
+        int64_t value = RValue_toInt64(a);
+        unsigned shift = (unsigned)RValue_toInt64(b) & 63u;
+        uint64_t bits = (uint64_t)value >> shift;
+        if (value < 0 && shift) bits |= UINT64_MAX << (64u - shift);
+        result = RValue_makeInt64((int64_t)bits);
+    } else {
+        int32_t value = RValue_toInt32(a);
+        unsigned shift = (unsigned)RValue_toInt32(b) & 31u;
+        uint32_t bits = (uint32_t)value >> shift;
+        if (value < 0 && shift) bits |= UINT32_MAX << (32u - shift);
+        result = RValue_makeInt32((int32_t)bits);
+    }
+    RValue_free(&a); RValue_free(&b);
+    stackPushTyped(ctx, result, instrType2(instr));
+}
+
+int VM_runIntegerTests(VMContext* ctx) {
+    uint32_t wide = (GML_TYPE_INT64 << 16) | (GML_TYPE_INT64 << 20);
+    stackPush(ctx, RValue_makeInt64(4294967295ll));
+    stackPush(ctx, RValue_makeInt64(4294967295ll));
+    handleAnd(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == 4294967295ll);
+    stackPush(ctx, RValue_makeInt64(4294901760ll));
+    stackPush(ctx, RValue_makeInt64(16));
+    handleShr(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == 65535);
+    stackPush(ctx, RValue_makeInt64(32768));
+    stackPush(ctx, RValue_makeInt64(16));
+    handleShl(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == 2147483648ll);
+    stackPush(ctx, RValue_makeInt64(-8));
+    stackPush(ctx, RValue_makeInt64(2));
+    handleShr(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == -2);
+    stackPush(ctx, RValue_makeInt64(1));
+    stackPush(ctx, RValue_makeInt64(63));
+    handleShl(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == INT64_MIN);
+    stackPush(ctx, RValue_makeInt64(0));
+    handleNot(ctx, wide);
+    require(RValue_toInt64(stackPop(ctx)) == -1);
+    require(ctx->stack.top == 0);
+    return 0;
 }
 
 static void handleConv(VMContext* ctx, uint8_t srcType, uint8_t dstType, uint8_t convKey) {
@@ -3073,7 +3130,7 @@ static RValue executeLoop(VMContext* ctx) {
                 uint8_t bType = slotB->type;
                 if ((aType == RVALUE_INT32 || aType == RVALUE_REAL) && (bType == RVALUE_INT32 || bType == RVALUE_REAL)) {
                     if (aType == RVALUE_INT32 && bType == RVALUE_INT32) {
-                        slotA->int32 = slotA->int32 + slotB->int32;
+                        slotA->int32 = (int32_t)((uint32_t)slotA->int32 + (uint32_t)slotB->int32);
                     } else {
                         // Read both operands as locals before writing back, since the union means
                         // slotA->real and slotA->int32 share storage.
@@ -3094,7 +3151,7 @@ static RValue executeLoop(VMContext* ctx) {
                     }
 #ifndef NO_RVALUE_INT64
                     if (a.type == RVALUE_INT64 && b.type == RVALUE_INT64) {
-                        stackPushTyped(ctx, RValue_makeInt64(a.int64 + b.int64), resultType);
+                        stackPushTyped(ctx, RValue_makeInt64((int64_t)((uint64_t)a.int64 + (uint64_t)b.int64)), resultType);
                         break;
                     }
 #endif
@@ -3112,7 +3169,7 @@ static RValue executeLoop(VMContext* ctx) {
                 uint8_t bType = slotB->type;
                 if ((aType == RVALUE_INT32 || aType == RVALUE_REAL) && (bType == RVALUE_INT32 || bType == RVALUE_REAL)) {
                     if (aType == RVALUE_INT32 && bType == RVALUE_INT32) {
-                        slotA->int32 = slotA->int32 - slotB->int32;
+                        slotA->int32 = (int32_t)((uint32_t)slotA->int32 - (uint32_t)slotB->int32);
                     } else {
                         GMLReal aVal = (aType == RVALUE_INT32) ? (GMLReal) slotA->int32 : slotA->real;
                         GMLReal bVal = (bType == RVALUE_INT32) ? (GMLReal) slotB->int32 : slotB->real;
@@ -3127,7 +3184,7 @@ static RValue executeLoop(VMContext* ctx) {
                     RValue a = stackPop(ctx);
 #ifndef NO_RVALUE_INT64
                     if (a.type == RVALUE_INT64 && b.type == RVALUE_INT64) {
-                        stackPushTyped(ctx, RValue_makeInt64(a.int64 - b.int64), resultType);
+                        stackPushTyped(ctx, RValue_makeInt64((int64_t)((uint64_t)a.int64 - (uint64_t)b.int64)), resultType);
                         break;
                     }
 #endif
@@ -3164,7 +3221,7 @@ static RValue executeLoop(VMContext* ctx) {
                     }
 #ifndef NO_RVALUE_INT64
                     if (a.type == RVALUE_INT64 && b.type == RVALUE_INT64) {
-                        stackPushTyped(ctx, RValue_makeInt64(a.int64 * b.int64), resultType);
+                        stackPushTyped(ctx, RValue_makeInt64((int64_t)((uint64_t)a.int64 * (uint64_t)b.int64)), resultType);
                         break;
                     }
 #endif

@@ -10,6 +10,7 @@
 #include "runner_mouse.h"
 
 static Runner *g_runner;
+static bool g_headless;
 static SDL_Surface* scr;
 static SDL_Window *window;
 static SDL_GameController* openControllers[MAX_GAMEPADS];
@@ -93,7 +94,7 @@ static SDL_Window *tryOpenWindow(int reqW, int reqH, const char* title, Uint32 f
 void platformSetWindowTitle(const char* title) {
     char windowTitle[256];
     snprintf(windowTitle, sizeof(windowTitle), "Butterscotch - %s", title);
-    SDL_SetWindowTitle(window, windowTitle);
+    if (!g_headless) SDL_SetWindowTitle(window, windowTitle);
 }
 
 bool platformGetWindowSize(int32_t* outW, int32_t* outH) {
@@ -119,6 +120,7 @@ bool platformGetWindowSize(int32_t* outW, int32_t* outH) {
 
 bool platformGetScaledWindowSize(int32_t* outW, int32_t* outH) {
     if (!outW || !outH) return false;
+    if (g_headless) return platformGetWindowSize(outW, outH);
     int w = 0;
     int h = 0;
     SDL_GetWindowSize(window, &w, &h);
@@ -129,6 +131,7 @@ bool platformGetScaledWindowSize(int32_t* outW, int32_t* outH) {
 }
 
 static float platformGetWindowScale(void) {
+    if (g_headless) return 1.0f;
     int32_t draw_w = 0, draw_h = 0;
     int logical_w, logical_h;
     platformGetWindowSize(&draw_w, &draw_h);
@@ -138,6 +141,12 @@ static float platformGetWindowScale(void) {
 
 void platformSetWindowSize(int32_t width, int32_t height) {
     if (width <= 0 || height <= 0) return;
+    if (g_headless) {
+        if (scr) SDL_FreeSurface(scr);
+        scr = SDL_CreateRGBSurface(0, width, height, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0);
+        require(scr != nullptr);
+        return;
+    }
 
     float scale = platformGetWindowScale();
     SDL_SetWindowSize(window, (int)(width / scale), (int)(height / scale));
@@ -156,18 +165,25 @@ void platformGetMousePos(double *xPos, double *yPos) {
 }
 
 static bool platformGetWindowFocus(void) {
-    return SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS;
+    return g_headless || (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS);
 }
 
 bool platformInit(int reqW, int reqH, const char *title, bool headless) {
+    g_headless = headless;
+    if (headless && gfx != SOFTWARE) return false;
     // Init SDL
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_GAMECONTROLLER)) {
+    if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER | (headless ? 0 : SDL_INIT_VIDEO))) {
         logError("Failed to initialize SDL\n");
         return false;
     }
 
     for (int i = 0; i < MAX_GAMEPADS; i++) {
         openControllers[i] = NULL;
+    }
+
+    if (headless) {
+        platformSetWindowSize(reqW, reqH);
+        return true;
     }
 
     Uint32 flags = 0;
@@ -238,6 +254,7 @@ void platformExit(void) {
             openControllers[i] = NULL;
         }
     }
+    if (g_headless && scr) { SDL_FreeSurface(scr); scr = nullptr; }
     SDL_Quit();
 }
 
@@ -305,6 +322,7 @@ void platformSetNextFramebuffer(uint32_t* framebuffer, int width, int height) {
 void platformSwapBuffers(void) {
 #ifdef ENABLE_SW_RENDERER
     if(gfx == SOFTWARE) {
+        if (g_headless) return;
         SDL_BlitSurface(nextFb, NULL, scr, NULL);
         SDL_UpdateWindowSurface(window);
     }
