@@ -40,6 +40,9 @@ Roms/PORTS/Games/UFO50/gamefiles/
   ext/
 ```
 
+Copy **every `audiogroup*.dat` file** alongside `data.win`. The texture folder
+can be named `textures` or `Textures`.
+
 `data.win` must be directly inside `gamefiles`. A ZIP or an extra UFO50 folder
 inside it will not work. Game files are not included in the download.
 

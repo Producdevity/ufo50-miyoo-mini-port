@@ -9,7 +9,8 @@ UFO 50 for Miyoo Mini and Mini Plus (Onion)
 
    data.win must be directly inside gamefiles, alongside the audio groups,
    textures, fonts and ext folders. Do not put a ZIP or another UFO50 folder
-   there. You do not need the Windows executable.
+   there. Copy every audiogroup*.dat file alongside data.win. Either textures
+   or Textures is accepted. You do not need the Windows executable.
 4. Run ~Import ports, then open Action > UFO50.
 
 D-pad: move/select. A or Y: first action/confirm. B or X: second action.

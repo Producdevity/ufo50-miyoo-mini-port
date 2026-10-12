@@ -34,7 +34,7 @@ These results cover recorded paths, not every level or feature of all 50 games.
 
 ## Community launch reports and v0.1.1, 2026-10-12
 
-All 12 comments in the linked Reddit snapshot were read. One person reports a
+All 14 comments in the refreshed Reddit snapshot were read. One person reports a
 corrupt Games folder while copying, then a black screen after reinstall/import.
 No device model or startup log was supplied. The public v0.1.0 download passes
 CRC and SHA256 verification; the SD copy failure remains undiagnosed.
@@ -63,8 +63,15 @@ the inherited ondemand governor is restored. This is SP regression evidence.
 The thread author reports roughly 20–30 FPS in early physical Mini playtests.
 Those reports have no attached measurements or named game scenes. They are
 now reflected in the README; a steady 30 FPS across the collection isn't
-established. The specific reporter's black screen still needs their startup
-log. See [the comment inventory](research/2026-10-12-reddit-feedback.md).
+established. A later [community report](https://github.com/Producdevity/ufo50-miyoo-mini-port/issues/1)
+identifies capitalized Textures and missing audio files and confirms recovery
+after correcting the copy. The runtime now accepts capitalized asset paths;
+missing referenced audio files are rejected before video/audio setup. Host
+and Mini ARM32 capitalization fixtures produce exactly the canonical gameplay
+image and offline audio counts. Case-sensitive native /tmp checks pass,
+including rejection of ambiguous names. The updated host suite runs 38 tests
+with one filesystem-dependent skip, covered by that native test. The SD copy
+corruption itself remains undiagnosed. See [the comment inventory](research/2026-10-12-reddit-feedback.md).
 
 ## Mini startup fix 2026-10-12
 
