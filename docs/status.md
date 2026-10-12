@@ -29,6 +29,27 @@ libraries on the SP. Physical Mini display, sound, memory headroom and frame
 rates remain unmeasured. The SP has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
 
+## Mini startup fix 2026-10-12
+
+The first physical Mini launch parsed the owned game data and created its
+640×480 SDL video mode, then stopped in `SDL_OpenAudio` before entering the
+initial room. Its launcher log identifies the OSS `/dev/dsp` driver and
+Onion's FIFO bridge. The shortcut had `KillAudioserver=1`, which stopped the
+server needed to answer that driver's audio-control requests.
+
+The shortcut now preserves the server. The launcher checks the running server,
+its audio FIFO and `libpadsp.so` before starting the runtime, retains the bridge
+preload and records the game's exit status. It returns immediately with a
+logged error when the bridge is unavailable.
+
+A native ARM32 transport test on the SP uses the card's exact `libpadsp.so`
+and Onion `audioserver`, with a simulated SigmaStar audio sink. A stopped
+server makes the client block until the four-second deadline. Preserving the
+server completes S16 stereo negotiation at 44.1 kHz and transfers 16,384 bytes.
+This validates the FIFO handshake; it does not prove sound from the Mini's
+speaker. All 25 Python checks and shell checks pass. A fresh physical Mini
+launch is still required to verify gameplay after this launcher fix.
+
 ## Development log
 
 The entries below record successive milestones. Later fixes supersede earlier

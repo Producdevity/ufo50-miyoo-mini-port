@@ -6,7 +6,8 @@ Windows copy of UFO 50.
 This is a development build. Controls, audio, saving, loading and quitting have
 been tested on a muOS SP. Measured gameplay is close to 30 FPS: Golfaria averages
 29.8 FPS and Vainger 29.5 FPS. Display, sound and performance still need to be
-tested on a physical Mini.
+tested on a physical Mini. The first Mini launch stalled during audio setup;
+this build corrects the launcher setting that stopped Onion's audio server.
 
 ## Install
 

@@ -37,6 +37,27 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# Onion's OSS bridge sends audio and ioctl requests to audioserver over FIFOs.
+# The Ports shortcut must preserve that server; stopping it blocks SDL_OpenAudio.
+padsp="$systemdir/../miyoo/lib/libpadsp.so"
+audio_fifo=${UFO50_AUDIO_FIFO:-/tmp/audio_fifo_server}
+if ! pgrep -f '(^|/)audioserver(\.mod)?([[:space:]]|$)' >/dev/null 2>&1; then
+    echo 'Audio: Onion audioserver is not running. Restart Onion and launch UFO50 again.'
+    exit 1
+fi
+if [ ! -p "$audio_fifo" ] || [ ! -s "$padsp" ]; then
+    echo 'Audio: Onion audio bridge is unavailable. Restart Onion and launch UFO50 again.'
+    exit 1
+fi
+unset PADSP_NO_DSP
+case "${LD_PRELOAD:-}" in
+    *libpadsp.so*) ;;
+    '') LD_PRELOAD=$padsp;;
+    *) LD_PRELOAD="$padsp:$LD_PRELOAD";;
+esac
+export LD_PRELOAD
+echo 'Audio: Onion audioserver preserved; OSS bridge ready'
+
 # Match the installed Balatro port's 1.5 GHz request, restoring inherited settings.
 target=${UFO50_CPU_MHZ:-1500}
 if [ "$target" != off ]; then
@@ -71,4 +92,5 @@ game_pid=$!
 status=0
 wait "$game_pid" || status=$?
 game_pid=
+printf 'Game exited: %s\n' "$status"
 exit "$status"
