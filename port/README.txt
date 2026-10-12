@@ -1,0 +1,32 @@
+UFO 50 for Miyoo Mini and Mini Plus (Onion)
+
+1. Enable Ports Collection in Onion's Package Manager.
+2. Extract the ZIP's Roms folder to the root of your SD card.
+3. Copy the contents of your Windows UFO 50 game folder into:
+
+   Roms/PORTS/Games/UFO50/gamefiles/
+
+   data.win must be directly inside gamefiles, alongside the audio groups,
+   textures, fonts and ext folders. Do not put a ZIP or another UFO50 folder
+   there. You do not need the Windows executable.
+4. Run ~Import ports, then open Action > UFO50.
+
+D-pad: move/select. A or Y: first action/confirm. B or X: second action.
+Start: pause menu. Select: back/menu.
+
+Use the game's menus to return to the library and quit.
+Saves: Saves/CurrentProfile/saves/UFO50
+Logs: Saves/CurrentProfile/saves/UFO50/logs
+Back up your saves before updating.
+
+UFO 50 uses a 16:9 picture. Black bars on the Mini's 4:3 screen are normal.
+This is the first release; not every game and level has been fully tested.
+
+Huge thanks to the Butterscotch team and cobaltgit's Onion branch for the
+GameMaker runner that makes this port possible.
+https://github.com/ButterscotchRunner/Butterscotch
+https://github.com/cobaltgit/Butterscotch/tree/onion-v2
+
+UFO 50 belongs to its creators and is not included. You need your own copy.
+Port source and matching release source:
+https://github.com/Producdevity/ufo50-miyoo-mini-port

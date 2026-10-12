@@ -4,7 +4,9 @@ Runtime source is under `runtime/`, imported from the pinned Butterscotch Onion
 branch. Integration lives under `scripts/`, `build/`, and `port/`. Keep upstream
 notices. Builds and evidence go in ignored `artifacts/`; local dependency
 references and owned game inputs go in ignored `.local/`. Never commit original
-assets, decompiled game scripts, saves, PCM recordings, or copied artwork.
+assets, decompiled game scripts, saves, PCM recordings, or extracted artwork.
+Short gameplay captures for the README live in `docs/images/`; record their
+origin in `docs/media.md`.
 
 ## Dependencies and builds
 
@@ -85,14 +87,15 @@ Commit every verified chunk. Rebuild after committing, then package:
 
 ```sh
 sh scripts/build-armhf.sh
-sh scripts/build-sp.sh
-python3 scripts/package.py
+python3 scripts/package.py --version "$(cat VERSION)"
 ```
 
 Packaging rejects dirty/stale source records, altered binaries, unsupported
-ELF ABIs/dependencies, RPATHs, and private game-data paths. Both development ZIPs
-include an exact `git archive` of the matching source commit. `SHA256SUMS` covers
-the ZIPs; each manifest identifies its target and binary/source hashes.
+ELF ABIs/dependencies, RPATHs, and private game-data paths. The versioned Mini release contains one install ZIP and a separate exact
+`git archive` of its source commit. Only the `Roms` tree goes in the install ZIP;
+source, previews and device evidence stay outside it. `SHA256SUMS` covers the
+install and source archives. The manifest lives inside the UFO50 game folder.
+For a development SP package, use `python3 scripts/package.py --target sp`.
 
 For collection audio and draw-cadence diagnostics without a physical output device:
 
@@ -129,6 +132,6 @@ scripts/zig-cc.sh -O2 -I.local/deps/include -Iruntime/src/backends \
 ```
 
 Run the executable with the Mini SDK SDL library available on the ARM32 test
-device. It compares 54 complete 16-bit and 32-bit images against SDL's full-clear
+device. It compares 162 complete 16-bit, 24-bit and 32-bit images in both orientations against SDL's full-clear
 scaling path, including uneven borders and stale pixels from a previous frame.
 Performance logs report `present_ms` separately from game drawing.
