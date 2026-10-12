@@ -1,7 +1,8 @@
 UFO 50 for Miyoo Mini and Mini Plus (Onion)
 
 1. Enable Ports Collection in Onion's Package Manager.
-2. Extract the ZIP's Roms folder to the root of your SD card.
+2. Merge the ZIP's Roms folder into the root of your SD card. Keep existing
+   Games and Shortcuts folders; overwrite only UFO50 port files.
 3. Copy the contents of your Windows UFO 50 game folder into:
 
    Roms/PORTS/Games/UFO50/gamefiles/
@@ -20,7 +21,17 @@ Logs: Saves/CurrentProfile/saves/UFO50/logs
 Back up your saves before updating.
 
 UFO 50 uses a 16:9 picture. Black bars on the Mini's 4:3 screen are normal.
-This is the first release; not every game and level has been fully tested.
+Early Mini playtests report roughly 20-30 FPS, depending on the game. Not
+all games and levels have been fully tested; a steady 30 FPS isn't verified.
+
+If startup stalls for 60 seconds, the launcher stops it and shows an error.
+For missing/incomplete files, recopy the whole Windows game folder. For any
+other launch failure, share the latest log, Mini model and Onion version at:
+https://github.com/Producdevity/ufo50-miyoo-mini-port/issues
+
+If your computer reports a corrupt Games folder, stop the copy, back up the
+card and check its filesystem. Copying this port should merge into existing
+folders, keeping your other ports and saves.
 
 Huge thanks to the Butterscotch team and cobaltgit's Onion branch for the
 GameMaker runner that makes this port possible.

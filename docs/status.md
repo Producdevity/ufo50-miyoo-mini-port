@@ -32,6 +32,40 @@ memory headroom and gameplay frame rates still need a fresh Mini test. The SP
 has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
 
+## Community launch reports and v0.1.1, 2026-10-12
+
+All 12 comments in the linked Reddit snapshot were read. One person reports a
+corrupt Games folder while copying, then a black screen after reinstall/import.
+No device model or startup log was supplied. The public v0.1.0 download passes
+CRC and SHA256 verification; the SD copy failure remains undiagnosed.
+
+The runtime now checks data.win's FORM length, external texture headers and
+dimensions, and the FORM lengths of audio groups referenced by sounds. The
+complete owned copy passes 105 texture and 52 audio-group checks on the host
+and the Mini ARM32 build using Mini libraries on the SP. Missing textures,
+a short texture header, a missing audio group, and truncated data.win exit
+with specific errors before VM/video/audio setup. Empty unused audio groups
+remain valid. This is not a full decompression/integrity audit.
+
+The Mini launcher selects firmware libraries explicitly and can use Onion's
+compatibility loader when the system loader is absent. Failed launches display
+an Onion error panel. A startup without a first displayed frame is stopped
+after 60 seconds; ready gameplay has no deadline. All 36 host checks pass,
+including stalled-start cleanup and preservation of clock/governor settings;
+all 10 launcher regressions also pass under the SP's actual BusyBox shell.
+
+A normal Ports regression run on the SP reaches Barbuta and exits at frame
+3600. The 18.183-second sampled gameplay interval averages 29.973 presentations
+per second and 60.000 logic steps per second. SDL reports 2,655 callbacks,
+2,718,720 mixed frames and 2,326,611 nonzero samples. The frontend returns and
+the inherited ondemand governor is restored. This is SP regression evidence.
+
+The thread author reports roughly 20–30 FPS in early physical Mini playtests.
+Those reports have no attached measurements or named game scenes. They are
+now reflected in the README; a steady 30 FPS across the collection isn't
+established. The specific reporter's black screen still needs their startup
+log. See [the comment inventory](research/2026-10-12-reddit-feedback.md).
+
 ## Mini startup fix 2026-10-12
 
 The first physical Mini launch parsed the owned game data and created its

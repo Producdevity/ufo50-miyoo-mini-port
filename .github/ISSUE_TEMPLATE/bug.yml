@@ -1,0 +1,32 @@
+name: Something is broken
+description: Report a launch or gameplay problem.
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Mini model and Onion version
+      placeholder: Miyoo Mini Plus, Onion 4.3.1-1
+    validations:
+      required: true
+  - type: input
+    id: port_version
+    attributes:
+      label: Port version
+      placeholder: v0.1.1
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the game, what you pressed, and whether you saw a picture or heard sound. For copy failures, include your computer OS and the exact error.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Latest UFO50 log
+      description: Attach or paste the latest file from Saves/CurrentProfile/saves/UFO50/logs. If there is no log, say so.
+      render: text
+    validations:
+      required: true
