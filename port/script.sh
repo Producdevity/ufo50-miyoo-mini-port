@@ -13,7 +13,7 @@ log="$savedir/logs/$(date +%Y%m%d-%H%M%S)-$$.log"
 exec >"$log" 2>&1
 case $(uname -m) in armv7*) ;; *) echo 'This binary requires ARM32 Linux on a Miyoo Mini.'; exit 1;; esac
 [ -f "$gamedir/gamefiles/data.win" ] || {
-  echo 'Missing gamefiles/data.win. Copy your owned Windows UFO 50 assets here; see README.md.'
+  echo 'Missing gamefiles/data.win. Copy your owned Windows UFO 50 assets here; see README.txt.'
   exit 1
 }
 

@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 from artifact import ROOT, inspect_arm32, sha256, source_state
-from package import build_record
+from package import build_record, release_version
 
 GAME = 'Roms/PORTS/Games/UFO50'
 SHORTCUT = 'Roms/PORTS/Shortcuts/Action/UFO50'
@@ -41,10 +41,20 @@ def unpack_package(archive, directory):
     if source['dirty']:
         raise ValueError('Deploy from a clean source checkout')
     _, expected_record = build_record('armhf', source)
-    allowed = {'manifest.json', 'source.tar.gz', SHORTCUT + '.notfound'} | {
-        GAME + '/' + name for name in ['bin/butterscotch', 'script.sh', 'README.md',
-                                      'LICENSE', 'NOTICE', '_required_files.txt']}
     with zipfile.ZipFile(archive) as package:
+        names = package.namelist()
+        versioned = GAME + '/manifest.json' in names
+        if len(names) != len(set(names)):
+            raise ValueError('Duplicate package member')
+        manifest_path = GAME + '/manifest.json' if versioned else 'manifest.json'
+        documents = ['README.txt', 'THIRD_PARTY.txt'] if versioned else ['README.md', 'README.txt']
+        allowed = {manifest_path, SHORTCUT + '.notfound'} | {
+            GAME + '/' + name for name in ['bin/butterscotch', 'script.sh',
+                'LICENSE', 'NOTICE', *documents]}
+        if not versioned:
+            allowed.update({'source.tar.gz', GAME + '/_required_files.txt'})
+        if set(names) != allowed | {GAME + '/gamefiles/'}:
+            raise ValueError('Unexpected or missing package member')
         if package.testzip():
             raise ValueError('Package CRC verification failed')
         for entry in package.infolist():
@@ -60,7 +70,7 @@ def unpack_package(archive, directory):
             if any(part in ('gamefiles', 'saves', '.local', 'artifacts') for part in parts) and not entry.is_dir():
                 raise ValueError('Private files found in distributable package')
         package.extractall(directory)
-    record = json.loads((directory / 'manifest.json').read_text())
+    record = json.loads((directory / manifest_path).read_text())
     binary = directory / GAME / 'bin/butterscotch'
     if record['source'] != source or record['target'] != 'armhf' or record['gamefiles_included']:
         raise ValueError('Wrong source, target or game-data boundary')
@@ -68,12 +78,26 @@ def unpack_package(archive, directory):
         raise ValueError('Package differs from the verified local build')
     if sha256(binary) != record['runtime_sha256'] or inspect_arm32(binary) != record['elf']:
         raise ValueError('Runtime verification failed')
-    if sha256(directory / 'source.tar.gz') != record['source_archive_sha256']:
+    if versioned:
+        version = release_version(record['version'])
+        source_name = f'ufo50-miyoo-mini-v{version}-source.tar.gz'
+        expected_url = f'https://github.com/Producdevity/ufo50-miyoo-mini-port/releases/download/v{version}/{source_name}'
+        if record['source_archive'] != source_name or record['source_url'] != expected_url:
+            raise ValueError('Unexpected source archive reference')
+        source_archive = archive.parent / source_name
+    else:
+        source_archive = directory / 'source.tar.gz'
+    if sha256(source_archive) != record['source_archive_sha256']:
         raise ValueError('Source archive verification failed')
-    for source_name, packaged_name in [('port/script.sh', GAME + '/script.sh'),
-                                        ('port/UFO50.notfound', SHORTCUT + '.notfound'),
-                                        ('README.md', GAME + '/README.md'),
-                                        ('LICENSE', GAME + '/LICENSE'), ('NOTICE', GAME + '/NOTICE')]:
+    source_files = [('port/script.sh', GAME + '/script.sh'),
+                    ('port/UFO50.notfound', SHORTCUT + '.notfound'),
+                    ('LICENSE', GAME + '/LICENSE'), ('NOTICE', GAME + '/NOTICE'),
+                    ('port/README.txt', GAME + '/README.txt')]
+    if versioned:
+        source_files.append(('licenses/THIRD_PARTY.txt', GAME + '/THIRD_PARTY.txt'))
+    else:
+        source_files.append(('README.md', GAME + '/README.md'))
+    for source_name, packaged_name in source_files:
         if sha256(ROOT / source_name) != sha256(directory / packaged_name):
             raise ValueError('Packaged source file differs from the clean checkout')
     return record
@@ -200,7 +224,8 @@ def deploy(sd, package, gamefiles, backup_root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sd', type=Path, default=Path('/Volumes/MIYOO'))
-    parser.add_argument('--package', type=Path, default=ROOT / 'artifacts/release/ufo50-miyoo-mini-development.zip')
+    version = release_version((ROOT / 'VERSION').read_text().strip())
+    parser.add_argument('--package', type=Path, default=ROOT / f'artifacts/release/v{version}/ufo50-miyoo-mini-v{version}.zip')
     parser.add_argument('--gamefiles', type=Path)
     args = parser.parse_args()
     sd = args.sd.resolve()

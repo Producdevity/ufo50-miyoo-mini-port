@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Package a verified, game-data-free development runtime and exact committed source."""
+"""Package the Mini install and exact source separately; keep device builds private."""
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import tarfile
@@ -33,7 +34,17 @@ def build_record(target, source):
     return binary, record
 
 
-def package(target, source, output):
+def release_version(value):
+    if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', value):
+        raise ValueError('Expected a version such as 0.1.0')
+    return value
+
+
+def package(target, source, output, version=None):
+    if version is not None:
+        release_version(version)
+        if target != 'armhf':
+            raise ValueError('Versioned releases contain only the Miyoo Mini install')
     binary, record = build_record(target, source)
     with tempfile.TemporaryDirectory(prefix='ufo50-package-') as directory:
         stage = Path(directory)
@@ -44,7 +55,7 @@ def package(target, source, output):
             shortcut = stage / 'Roms/PORTS/Shortcuts/Action/UFO50.notfound'
             shortcut.parent.mkdir(parents=True)
             shutil.copy2(ROOT / 'port/UFO50.notfound', shortcut)
-            name = 'ufo50-miyoo-mini-development.zip'
+            name = f'ufo50-miyoo-mini-v{version}.zip' if version else 'ufo50-miyoo-mini-development.zip'
         else:
             game = stage / 'mmc/.ufo50-dev'
             game.mkdir(parents=True)
@@ -57,12 +68,19 @@ def package(target, source, output):
         shutil.copy2(binary, game / 'bin/butterscotch')
         (game / 'bin/butterscotch').chmod(0o755)
         (game / 'gamefiles').mkdir()
-        (game / '_required_files.txt').write_text(
-            'Supply your owned Windows UFO 50 assets in gamefiles/.\n'
-            'Copy the Windows game folder contents here; data.win must be in gamefiles/.\n'
-            'See README.md for installation instructions.\n')
-        for document in ['README.md', 'LICENSE', 'NOTICE']:
+        if not version:
+            (game / '_required_files.txt').write_text(
+                'Supply your owned Windows UFO 50 assets in gamefiles/.\n'
+                'Copy the Windows game folder contents here; data.win must be in gamefiles/.\n'
+                'See README.txt for installation instructions.\n')
+        for document in ['LICENSE', 'NOTICE']:
             shutil.copy2(ROOT / document, game / document)
+        if version:
+            shutil.copy2(ROOT / 'port/README.txt', game / 'README.txt')
+            shutil.copy2(ROOT / 'licenses/THIRD_PARTY.txt', game / 'THIRD_PARTY.txt')
+        else:
+            shutil.copy2(ROOT / 'README.md', game / 'README.md')
+            shutil.copy2(ROOT / 'port/README.txt', game / 'README.txt')
         source_archive = stage / 'source.tar.gz'
         subprocess.run(['git', 'archive', '--format=tar.gz', '--output=' + str(source_archive),
                         source['commit']], cwd=ROOT, check=True)
@@ -73,13 +91,22 @@ def package(target, source, output):
                     raise ValueError(f'Private directory in source archive: {entry.name}')
                 if entry.name.endswith(('.win', '.yytex', '.ufo', '.exe')):
                     raise ValueError(f'Game data in source archive: {entry.name}')
-        manifest = dict(record, status='development', gamefiles_included=False,
+        manifest = dict(record, status='release' if version else 'development', gamefiles_included=False,
                         source_archive_sha256=sha256(source_archive),
                         physical_miyoo_validation=False)
-        (stage / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        if version:
+            source_name = f'ufo50-miyoo-mini-v{version}-source.tar.gz'
+            shutil.copy2(source_archive, output / source_name)
+            manifest.update(version=version, source_archive=source_name,
+                source_url=f'https://github.com/Producdevity/ufo50-miyoo-mini-port/releases/download/v{version}/{source_name}')
+            (game / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        else:
+            (stage / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         archive = output / name
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as package_zip:
             for file in sorted(stage.rglob('*')):
+                if version and file == source_archive:
+                    continue
                 if file.is_file() or file == game / 'gamefiles':
                     package_zip.write(file, file.relative_to(stage))
         with zipfile.ZipFile(archive) as package_zip:
@@ -93,16 +120,31 @@ def package(target, source, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--target', choices=['armhf', 'sp', 'all'], default='all')
+    parser.add_argument('--target', choices=['armhf', 'sp', 'all'], default='armhf')
+    parser.add_argument('--version', help='Mini release version; defaults to VERSION for the Mini target')
     args = parser.parse_args()
     source = source_state()
     if source['dirty']:
         parser.error('Commit verified source changes, then rebuild from a clean tree')
+    version = args.version
+    if version is None and args.target == 'armhf':
+        version = (ROOT / 'VERSION').read_text().strip()
+    try:
+        if version:
+            release_version(version)
+            if args.target != 'armhf':
+                raise ValueError('Versioned releases contain only the Miyoo Mini install')
+    except ValueError as error:
+        parser.error(str(error))
     output = ROOT / 'artifacts/release'
+    if version:
+        output /= 'v' + version
     output.mkdir(parents=True, exist_ok=True)
     targets = ['armhf', 'sp'] if args.target == 'all' else [args.target]
     try:
-        archives = [package(target, source, output) for target in targets]
+        archives = [package(target, source, output, version) for target in targets]
+        if version:
+            archives.append(output / f'ufo50-miyoo-mini-v{version}-source.tar.gz')
     except (ValueError, FileNotFoundError) as error:
         parser.error(str(error))
     (output / 'SHA256SUMS').write_text(''.join(f'{sha256(archive)}  {archive.name}\n'

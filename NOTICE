@@ -7,5 +7,6 @@ The runtime includes its upstream notices and third-party license texts.
 UFO 50 is made by Mossmouth and must be purchased separately. No game assets are distributed.
 PortMaster/RHH UFO 50 scripts informed the research; their proprietary runner is not bundled.
 
-Binary dependency notices are in licenses/THIRD_PARTY.txt.
+Binary dependency notices are in THIRD_PARTY.txt in the install ZIP
+and licenses/THIRD_PARTY.txt in the source tree.
 Matching source is available alongside each GitHub release.
