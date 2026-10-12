@@ -1,4 +1,5 @@
 #include "overlay_file_system.h"
+#include "asset_path.h"
 #include "utils.h"
 #include "stb_ds.h"
 
@@ -81,6 +82,8 @@ static char* resolveForRead(OverlayFileSystem* ofs, const char* relativePath) {
     free(saveFull);
     char* bundleFull = joinPath(ofs->bundlePath, normalized);
     free(normalized);
+    char* diskPath = AssetPath_resolveRead(bundleFull);
+    if (diskPath) { free(bundleFull); return diskPath; }
     return bundleFull;
 }
 
@@ -133,6 +136,8 @@ static char* overlayResolvePath(FileSystem* fs, const char* relativePath) {
 
     char* full = joinPath(ofs->bundlePath, normalized);
     free(normalized);
+    char* diskPath = AssetPath_resolveRead(full);
+    if (diskPath) { free(full); return diskPath; }
     return full;
 }
 

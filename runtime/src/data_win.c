@@ -1,5 +1,6 @@
 #include "data_win.h"
 #include "binary_reader.h"
+#include "asset_path.h"
 #include "ufo50/game_files.h"
 
 #include <stdbool.h>
@@ -2588,6 +2589,11 @@ static void resolveExternalTextures(DataWin* dw, const char* dataPath) {
             tex->externalPath = (char*)safeMalloc(size);
             snprintf(tex->externalPath, size, "%.*s%s/%s_%d%s", (int)base, dataPath,
                      group->directory, group->name, tex->indexInGroup, group->extension);
+            char* diskPath = AssetPath_resolveRead(tex->externalPath);
+            if (diskPath) {
+                free(tex->externalPath);
+                tex->externalPath = diskPath;
+            }
         }
     }
 }
@@ -2714,7 +2720,9 @@ bool DataWin_validateUfo50Files(DataWin* dw, const char* dataPath) {
         size_t size = base + strlen(name) + 1;
         char* path = safeMalloc(size);
         snprintf(path, size, "%.*s%s", (int)base, dataPath, name);
-        bool ok = Ufo50_checkFormFile(path);
+        char* diskPath = AssetPath_resolveRead(path);
+        bool ok = Ufo50_checkFormFile(diskPath ? diskPath : path);
+        free(diskPath);
         if (!ok) logError("Game files: missing or invalid audio group: %s\n", path);
         free(path);
         if (!ok) return false;
