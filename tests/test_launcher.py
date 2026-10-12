@@ -55,6 +55,7 @@ cat "$TEST_ROOT/frequency" > "$TEST_ROOT/during-frequency"
 cat "$TEST_ROOT/governor" > "$TEST_ROOT/during-governor"
 printf '%s\\n' "${PADSP_NO_DSP:-unset}" > "$TEST_ROOT/audio-disable"
 printf '%s\\n' "$LD_PRELOAD" > "$TEST_ROOT/audio-preload"
+printf '%s\\n' "$UFO50_ROTATE_180" > "$TEST_ROOT/rotation"
 exit 7
 ''')
         result = subprocess.run(['sh', str(self.root / 'game/script.sh')], env=self.env, timeout=5)
@@ -63,6 +64,7 @@ exit 7
         self.assertEqual((self.root / 'during-governor').read_text().strip(), 'performance')
         self.assertEqual((self.root / 'audio-disable').read_text().strip(), 'unset')
         self.assertIn('libpadsp.so', (self.root / 'audio-preload').read_text())
+        self.assertEqual((self.root / 'rotation').read_text().strip(), '1')
         self.assertIn('KillAudioserver=0', (ROOT / 'port/UFO50.notfound').read_text())
         self.assert_restored()
 

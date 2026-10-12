@@ -5,9 +5,8 @@ Windows copy of UFO 50.
 
 This is a development build. Controls, audio, saving, loading and quitting have
 been tested on a muOS SP. Measured gameplay is close to 30 FPS: Golfaria averages
-29.8 FPS and Vainger 29.5 FPS. Display, sound and performance still need to be
-tested on a physical Mini. The first Mini launch stalled during audio setup;
-this build corrects the launcher setting that stopped Onion's audio server.
+29.8 FPS and Vainger 29.5 FPS. The Mini now boots into the library; gameplay,
+speaker output and performance across the collection still need hardware tests.
 
 ## Install
 
@@ -37,6 +36,16 @@ SD card/
 **`data.win` must be at `Roms/PORTS/Games/UFO50/gamefiles/data.win`.** Extract the
 files first; putting a ZIP or an extra UFO50 folder inside `gamefiles` will not
 work. Game files are not included in the download.
+
+## Display
+
+UFO 50 uses a 384×216 picture (16:9). On the Mini's 640×480 screen, the port
+fits it into 640×360 with a 60-pixel black bar above and below. Those bars are
+normal. The game's display settings do not provide a native 4:3 layout.
+
+The Onion launcher corrects the panel's 180-degree orientation. If you use an
+SDL library that already rotates the screen, set `UFO50_ROTATE_180=0` in
+`script.sh`.
 
 ## Controls and saves
 

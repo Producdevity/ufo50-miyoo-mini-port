@@ -77,6 +77,7 @@ if [ "$target" != off ]; then
 fi
 
 export UFO50_PLATFORM=miyoo
+export UFO50_ROTATE_180="${UFO50_ROTATE_180:-1}"
 export UFO50_RENDER_FPS=30
 export UFO50_TEXTURE_CACHE_MIB="${UFO50_TEXTURE_CACHE_MIB:-24}"
 export UFO50_NATIVE_RESOLUTION=384x216

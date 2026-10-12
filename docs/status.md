@@ -25,8 +25,11 @@ The Mini build is ARMv7 hard-float with no GLES/EGL dependency and requires
 at most GLIBC 2.17. The mounted card runs Onion v4.3.1-1. Its Ports importer,
 standalone launcher and keyboard conventions have been checked. Native ARM32
 compatibility and input selftests pass using Mini SDK SDL and the card's C
-libraries on the SP. Physical Mini display, sound, memory headroom and frame
-rates remain unmeasured. The SP has different hardware and more memory.
+libraries on the SP. A physical Mini now reaches the library and runs its
+frame loop with audio callbacks; its first working picture was upside down.
+The current launcher enables panel rotation. Upright display, speaker output,
+memory headroom and gameplay frame rates still need a fresh Mini test. The SP
+has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
 
 ## Mini startup fix 2026-10-12
@@ -49,6 +52,28 @@ server completes S16 stereo negotiation at 44.1 kHz and transfers 16,384 bytes.
 This validates the FIFO handshake; it does not prove sound from the Mini's
 speaker. All 25 Python checks and shell checks pass. A fresh physical Mini
 launch is still required to verify gameplay after this launcher fix.
+
+## Mini orientation and aspect ratio 2026-10-12
+
+The Mini log after the audio-launch fix reaches `rmLibrary`, presents frames
+and exits the SDL audio callback thread during teardown. It records 2,602
+callbacks with 4,066,777 nonzero samples. The user confirms a visible picture
+but reports that it is upside down. This establishes startup and presentation;
+it does not verify audible speaker output or gameplay controls.
+
+The Mini launcher now requests a 180-degree correction, matching the existing
+Balatro Mini launcher. The software presenter reverses output rows and columns
+while scaling the final image; the game framebuffer and its Draw events retain
+their existing coordinates. Original sample positions, borders, padded pitch
+and 24-bit fallback are covered by 162 native pixel comparisons on both the
+Mini SDK SDL library and the SP's SDL12 compatibility library. A fresh physical
+Mini test is required to confirm the upright image.
+
+The owned game's display initialization and defaults use 384×216 dimensions
+and scale choices throughout. There is no native 4:3 layout in those settings.
+The port keeps 16:9 content centered at 640×360 on the 640×480 Mini panel,
+with 60-pixel bars at the top and bottom. Game bytecode inspections and
+physical logs remain private and are excluded from the public source.
 
 ## Development log
 

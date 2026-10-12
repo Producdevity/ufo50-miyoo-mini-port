@@ -23,6 +23,7 @@
 static Runner *g_runner;
 static bool g_headless;
 static bool g_nativeSoftware;
+static bool g_rotateSoftware;
 static int32_t g_nativeWidth, g_nativeHeight;
 static int32_t fbWidth, fbHeight;
 static SDL_Surface* scr;
@@ -276,6 +277,8 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
         sscanf(native, "%dx%d", &g_nativeWidth, &g_nativeHeight) == 2 &&
         g_nativeWidth > 0 && g_nativeWidth <= 4096 &&
         g_nativeHeight > 0 && g_nativeHeight <= 4096;
+    const char* rotate = getenv("UFO50_ROTATE_180");
+    g_rotateSoftware = g_nativeSoftware && rotate && strcmp(rotate, "1") == 0;
     if (headless && gfx != SOFTWARE) {
         logError("Headless mode on SDL 1.2 requires the software renderer!\n");
         return false;
@@ -326,8 +329,8 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
     if (g_nativeSoftware) {
         fbWidth = g_nativeWidth;
         fbHeight = g_nativeHeight;
-        logInfo("Video: native software framebuffer %dx%d, display %dx%d\n",
-            fbWidth, fbHeight, scr ? scr->w : 0, scr ? scr->h : 0);
+        logInfo("Video: native software framebuffer %dx%d, display %dx%d, rotate180=%d\n",
+            fbWidth, fbHeight, scr ? scr->w : 0, scr ? scr->h : 0, g_rotateSoftware);
     }
     if (!headless) SDL_WM_SetCaption(title, NULL);
 
@@ -421,8 +424,9 @@ void platformSwapBuffers(void) {
             if (height > scr->h) { height = scr->h; width = height * source->w / source->h; }
             SDL_Rect dest = {(Sint16)((scr->w - width) / 2), (Sint16)((scr->h - height) / 2),
                              (Uint16)width, (Uint16)height};
-            Ufo50_clearVideoBorders(scr, &dest);
-            if (Ufo50_stretchVideo(&videoScaler, source, scr, &dest) < 0) {
+            SDL_Rect physical = Ufo50_videoImageRect(scr, &dest, g_rotateSoftware);
+            Ufo50_clearVideoBorders(scr, &physical);
+            if (Ufo50_stretchVideo(&videoScaler, source, scr, &dest, g_rotateSoftware) < 0) {
                 SDL_FillRect(scr, NULL, 0);
                 logError("Video: native framebuffer scaling failed: %s\n", SDL_GetError());
             }
