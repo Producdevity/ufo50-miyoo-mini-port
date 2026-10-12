@@ -971,6 +971,7 @@ bool DataWin_isVersionAtLeast(const DataWin* dw, uint32_t major, uint32_t minor,
 void DataWin_bumpVersionTo(DataWin* dw, uint32_t major, uint32_t minor, uint32_t release, uint32_t build);
 void GamePath_computeInternal(GamePath* path);
 PathPositionResult GamePath_getPosition(GamePath* path, float t);
+bool DataWin_validateUfo50Files(DataWin* dw, const char* dataPath);
 void DataWin_loadTxtrIfNeeded(DataWin* dw, uint32_t textureId);
 void DataWin_loadAudoIfNeeded(DataWin* dw, uint32_t audioEntryId);
 

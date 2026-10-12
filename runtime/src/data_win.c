@@ -1,5 +1,6 @@
 #include "data_win.h"
 #include "binary_reader.h"
+#include "ufo50/game_files.h"
 
 #include <stdbool.h>
 #include "stdio_compat.h"
@@ -2679,6 +2680,48 @@ static void parseTXTR(BinaryReader* reader, DataWin* dw, size_t chunkEnd, bool l
                 t->textures[i].blobData = BinaryReader_readBytesAt(reader, t->textures[i].blobOffset, t->textures[i].blobSize);
         }
     }
+}
+
+bool DataWin_validateUfo50Files(DataWin* dw, const char* dataPath) {
+    uint32_t textures = 0, groups = 0;
+    repeat(dw->txtr.count, i) {
+        Texture* texture = &dw->txtr.textures[i];
+        if (!texture->externalPath) continue;
+        if (!Ufo50_checkTextureFile(texture->externalPath, texture->textureWidth, texture->textureHeight)) {
+            logError("Game files: missing or invalid external texture: %s\n", texture->externalPath);
+            return false;
+        }
+        textures++;
+    }
+    const char* slash = strrchr(dataPath, '/');
+    size_t base = slash ? (size_t)(slash - dataPath + 1) : 0;
+    for (uint32_t i = 1; i < dw->agrp.count; i++) {
+        AudioGroup* group = &dw->agrp.audioGroups[i];
+        if (!group->present) continue;
+        bool used = false;
+        repeat(dw->sond.count, j) {
+            Sound* sound = &dw->sond.sounds[j];
+            if (sound->present && sound->audioGroup == (int32_t)i && sound->audioFile >= 0) {
+                used = true;
+                break;
+            }
+        }
+        // The game declares empty groups without shipping .dat files for them.
+        if (!used) continue;
+        char fallback[40];
+        snprintf(fallback, sizeof(fallback), "audiogroup%u.dat", i);
+        const char* name = group->path ? group->path : fallback;
+        size_t size = base + strlen(name) + 1;
+        char* path = safeMalloc(size);
+        snprintf(path, size, "%.*s%s", (int)base, dataPath, name);
+        bool ok = Ufo50_checkFormFile(path);
+        if (!ok) logError("Game files: missing or invalid audio group: %s\n", path);
+        free(path);
+        if (!ok) return false;
+        groups++;
+    }
+    logInfo("Game files: checked %u external textures and %u audio groups\n", textures, groups);
+    return true;
 }
 
 void DataWin_loadTxtrIfNeeded(DataWin* dw, uint32_t textureId) {

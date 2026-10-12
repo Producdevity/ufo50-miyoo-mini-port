@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "loop.h"
 #include "ufo50/frame_clock.h"
+#include "ufo50/game_files.h"
 
 #include "platformdefs.h"
 #include "stdio_compat.h"
@@ -537,7 +538,17 @@ int loop(CommandLineArgs args, const char *argv0) {
         options.lazyLoadTextures = args.lazyTextures;
         options.lazyLoadAudio = args.lazyAudio;
         options.eagerlyLoadedRooms = args.eagerRooms;
+        const char* checkFiles = getenv("UFO50_VALIDATE_FILES");
+        bool validateFiles = checkFiles && strcmp(checkFiles, "1") == 0;
+        if (validateFiles && !Ufo50_checkFormFile(currentDataWinPath)) {
+            logError("Game files: data.win is missing, truncated or invalid. Recopy the Windows game folder.\n");
+            return 1;
+        }
         DataWin* dataWin = DataWin_parse(currentDataWinPath, options);
+        if (validateFiles && !DataWin_validateUfo50Files(dataWin, currentDataWinPath)) {
+            DataWin_free(dataWin);
+            return 1;
+        }
 
         Gen8* gen8 = &dataWin->gen8;
         logInfo("Loaded \"%s\" (%d) successfully! [WAD Version %u / GameMaker version %u.%u.%u.%u]\n", gen8->name, gen8->gameID, gen8->wadVersion, dataWin->detectedFormat.major, dataWin->detectedFormat.minor, dataWin->detectedFormat.release, dataWin->detectedFormat.build);
@@ -980,6 +991,7 @@ int loop(CommandLineArgs args, const char *argv0) {
         Ufo50FrameClock renderClock = {0};
         const char* perfEnv = getenv("UFO50_PERF_LOG");
         bool perfEnabled = perfEnv && strcmp(perfEnv, "0") != 0;
+        bool startupPresented = false;
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
         uint64_t perfWork = 0, perfDrawWork = 0, perfPresentWork = 0;
         while (true) {
@@ -1316,6 +1328,10 @@ int loop(CommandLineArgs args, const char *argv0) {
                     if (runner->pendingRoom == -1) {
                         uint64_t presentStarted = nowNanos();
                         platformSwapBuffers();
+                        if (!startupPresented && !args.headless) {
+                            logInfo("Startup: first frame presented\n");
+                            startupPresented = true;
+                        }
                         perfPresentWork += nowNanos() - presentStarted;
                         perfPresents++;
                     }

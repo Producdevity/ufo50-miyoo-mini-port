@@ -24,6 +24,7 @@ class MiniLauncher(unittest.TestCase):
         self.executable('tools/pgrep', '#!/bin/sh\nexit "${TEST_SERVER_STATUS:-0}"\n')
         (self.root / 'frequency').write_text('1200\n')
         (self.root / 'governor').write_text('ondemand\n')
+        self.executable('system/bin/infoPanel', '#!/bin/sh\nprintf \"%s\\n\" \"$@\" > \"$TEST_ROOT/panel\"\n')
         self.executable('tools/uname', '#!/bin/sh\nprintf "armv7l\\n"\n')
         self.executable('system/bin/cpuclock', '''#!/bin/sh
 if [ "$#" -gt 0 ]; then printf '%s\\n' "$1" > "$TEST_ROOT/frequency"; fi
@@ -34,11 +35,13 @@ cat "$TEST_ROOT/frequency"
                         UFO50_SAVE_DIR=str(self.root / 'saves'),
                         UFO50_SYSTEM_DIR=str(self.root / 'system'),
                         UFO50_AUDIO_FIFO=str(self.root / 'audio_fifo'),
+                        UFO50_SYSTEM_LOADER='/bin/sh',
                         PADSP_NO_DSP='1',
                         UFO50_GOVERNOR_FILE=str(self.root / 'governor'))
 
     def executable(self, name, text):
         path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         path.chmod(0o755)
 
@@ -105,7 +108,7 @@ while :; do sleep 0.05; done
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.root / 'launched').exists())
         log = next((self.root / 'saves/logs').glob('*.log')).read_text()
-        self.assertIn('audioserver is not running', log)
+        self.assertIn('audio server is not running', log)
         self.assert_restored()
 
     def test_missing_audio_fifo_does_not_enter_sdl(self):
@@ -117,4 +120,76 @@ while :; do sleep 0.05; done
         self.assertFalse((self.root / 'launched').exists())
         log = next((self.root / 'saves/logs').glob('*.log')).read_text()
         self.assertIn('audio bridge is unavailable', log)
+        self.assert_restored()
+
+    def test_missing_game_and_runtime_have_visible_errors(self):
+        for missing in ['data', 'runtime']:
+            with self.subTest(missing=missing):
+                self.executable('game/bin/butterscotch', '#!/bin/sh\ntouch "$TEST_ROOT/launched"\n')
+                if missing == 'data':
+                    (self.root / 'game/gamefiles/data.win').unlink()
+                else:
+                    (self.root / 'game/gamefiles/data.win').write_bytes(b'fixture')
+                    (self.root / 'game/bin/butterscotch').unlink()
+                result = subprocess.run(['sh', str(self.root / 'game/script.sh')], env=self.env, timeout=5)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse((self.root / 'launched').exists())
+                self.assertIn('Missing' if missing == 'data' else 'runtime is missing', (self.root / 'panel').read_text())
+                self.assert_restored()
+
+    def test_compatibility_loader_without_inherited_library_path(self):
+        self.executable('system/lib/parasyte/ld-linux-armhf.so.3', '''#!/bin/sh
+printf '%s\\n' "$@" > "$TEST_ROOT/loader-args"
+[ "$1" = --library-path ] || exit 8
+shift 2
+exec "$@"
+''')
+        self.executable('game/bin/butterscotch', '''#!/bin/sh
+printf '%s\\n' "$LD_LIBRARY_PATH" > "$TEST_ROOT/library-path"
+printf '%s\\n' "$@" > "$TEST_ROOT/game-args"
+echo 'Startup: first frame presented'
+''')
+        env = dict(self.env, UFO50_SYSTEM_LOADER=str(self.root / 'absent-loader'))
+        env.pop('LD_LIBRARY_PATH', None)
+        result = subprocess.run(['sh', str(self.root / 'game/script.sh'), '--seed', '1234'], env=env, timeout=5)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(str(self.root / 'system/lib/parasyte'), (self.root / 'library-path').read_text())
+        self.assertIn('--seed\n1234', (self.root / 'game-args').read_text())
+        self.assert_restored()
+
+    def test_missing_loader_is_visible(self):
+        self.executable('game/bin/butterscotch', '#!/bin/sh\ntouch "$TEST_ROOT/launched"\n')
+        env = dict(self.env, UFO50_SYSTEM_LOADER=str(self.root / 'absent-loader'))
+        result = subprocess.run(['sh', str(self.root / 'game/script.sh')], env=env, timeout=5)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / 'launched').exists())
+        self.assertIn('runtime loader is missing', (self.root / 'panel').read_text())
+        self.assert_restored()
+
+    def test_stalled_start_is_killed_and_clock_restored(self):
+        self.executable('game/bin/butterscotch', '''#!/bin/sh
+printf '%s\\n' "$$" > "$TEST_ROOT/child"
+trap '' TERM
+while :; do sleep 0.1; done
+''')
+        result = subprocess.run(['sh', str(self.root / 'game/script.sh')],
+                                env=dict(self.env, UFO50_STARTUP_TIMEOUT='1'), timeout=8)
+        self.assertNotEqual(result.returncode, 0)
+        child = int((self.root / 'child').read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child, 0)
+        self.assertIn('Startup stalled', (self.root / 'panel').read_text())
+        self.assert_restored()
+
+    def test_ready_game_outlives_startup_deadline(self):
+        self.executable('game/bin/butterscotch', '''#!/bin/sh
+echo 'Startup: first frame presented'
+sleep 2
+touch "$TEST_ROOT/completed"
+''')
+        result = subprocess.run(['sh', str(self.root / 'game/script.sh')],
+                                env=dict(self.env, UFO50_STARTUP_TIMEOUT='1'), timeout=6)
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue((self.root / 'completed').exists())
+        self.assertFalse((self.root / 'panel').exists())
         self.assert_restored()
