@@ -5,16 +5,22 @@ runtimes and their exact source, with game assets excluded.
 
 The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
 movement, jumping, attacking, pause, returning to the library, normal quit and
-persistent save reload. Digital audio reaches the codec sink. The measured
-Barbuta interval presents 29.996 FPS over 123 seconds; Cyber Owls presents
-29.980 FPS over 20 seconds. Vainger with ThinLTO and preserved Draw events
-averages 29.489 and 29.539 FPS in two sampled gameplay intervals. With the
-native logical SP display, Golfaria averages 29.786 FPS (59.589 logic steps/s)
-over 58.517 seconds of gameplay, with 1.543 ms spent presenting each image.
-Loading and the final state export are excluded. This is close to the requested
-30 FPS but does not establish a locked rate in every scene. A 4.923-second codec
-sink capture contains nonzero stereo S16 audio at 44.1 kHz. The framebuffer
-capture confirms the game image and aspect-preserving bars on the SP panel.
+persistent save reload. Digital audio reaches the codec sink. The latest
+30 Hz presentation tests use the release-mode ARM32 runtime on the SP at its
+stock 1.512 GHz clock, with CRT enabled:
+
+| Game | CRT | Gameplay window | Presentations/s | Logic steps/s | Largest interval |
+| --- | --- | --- | --- | --- | --- |
+| Barbuta | Soft | 105.050 s | 30.005 | 60.000 | 36.392 ms |
+| Golfaria | Hard | 88.768 s | 29.966 | 59.932 | 43.742 ms |
+| Vainger | Hard | 88.867 s | 30.000 | 60.000 | 36.587 ms |
+
+These runs use source `8116593`, binary SHA256
+`a5155b9a5c24ad037047c10e39681e9d91549f400d455b6c30fd72eb18c3a646`.
+None of the sampled intervals exceeds 50 ms. Loading, menus, the final state
+export and the Barbuta codec-capture window are excluded. Golfaria's separate
+5.933-second codec sink capture contains nonzero stereo S16 audio at 44.1 kHz.
+These are SP measurements, not Mini measurements or a guarantee for every level.
 
 All 50 seeded host room paths complete with the real offline audio mixer.
 Their complete recorded states match the 60 FPS baseline exactly. Draw events
@@ -22,7 +28,7 @@ continue at the game logic rate; only main-frame rasterization and presentation
 are limited to 30 Hz. User-created surfaces continue updating every step.
 
 The Mini build is ARMv7 hard-float with no GLES/EGL dependency and requires
-at most GLIBC 2.17. The mounted card runs Onion v4.3.1-1. Its Ports importer,
+at most GLIBC 2.17. The previously inspected Mini card runs Onion v4.3.1-1. Its Ports importer,
 standalone launcher and keyboard conventions have been checked. Native ARM32
 compatibility and input selftests pass using Mini SDK SDL and the card's C
 libraries on the SP. A physical Mini now reaches the library and runs its
@@ -42,17 +48,18 @@ full desktop blur shader stack. It leaves game framebuffers and gameplay state
 unchanged and uses no enlarged filter surfaces.
 
 A normal SP Ports run switches through Soft, Hard, Soft, Off and Soft, resumes
-Barbuta, and exits normally at frame 7800 with nonzero SDL audio output. Active
+Barbuta, and exits normally at frame 14400 with nonzero SDL audio output. Active
 framebuffer captures show the menu choices and filtered gameplay. Host runs
 produce distinct images for all three settings and identical offline audio
 counts. All 486 native pixel comparisons pass with Mini SDK SDL and SP SDL,
-covering 16/24/32-bit surfaces, borders and rotation. The ARMv7 NEON pass preserves the same pixels. In the SP
-CPU benchmark, 32-bit scaling plus CRT at 640x360 falls from 10.949 to
+covering 16/24/32-bit surfaces, borders and rotation. The ARMv7 NEON pass
+preserves the same pixels. In the SP CPU benchmark, 32-bit scaling plus CRT at
+640x360 falls from 10.948 to
 1.533 ms/image; scaling alone takes 1.050 ms. The RGB565 path also preserves
 the different SDL1 and SDL2 expansion rules. These are isolated display-pass
 timings on the SP, not physical Mini gameplay measurements.
 
-## VM call storage and pacing, 2026-10-13
+## VM call storage and presentation measurements, 2026-10-13
 
 Frames with up to sixteen locals or arguments use storage on the C call frame.
 Larger frames and sparse writes grow into separate heap buffers. Calls retain
@@ -71,7 +78,10 @@ in the first pair of longer runs.
 
 Performance logs now report the p95 presentation interval (a half-millisecond
 bucket upper bound), maximum interval and gaps exceeding 1.5 scheduled periods.
-Fresh normal-launch measurements with CRT enabled remain to be collected.
+The normal-launch measurements above include CRT, recorded inputs and SDL audio.
+A separate deadline-wait experiment reduced Vainger's maximum interval from
+36.587 to 34.781 ms while retaining 30 FPS. Golfaria showed no benefit and
+averaged 29.825 FPS. That experiment is excluded from the release.
 
 ## Community launch reports and v0.1.1, 2026-10-12
 
@@ -101,10 +111,7 @@ per second and 60.000 logic steps per second. SDL reports 2,655 callbacks,
 2,718,720 mixed frames and 2,326,611 nonzero samples. The frontend returns and
 the inherited ondemand governor is restored. This is SP regression evidence.
 
-The thread author reports roughly 20–30 FPS in early physical Mini playtests.
-Those reports have no attached measurements or named game scenes. They are
-now reflected in the README; a steady 30 FPS across the collection isn't
-established. A later [community report](https://github.com/Producdevity/ufo50-miyoo-mini-port/issues/1)
+A later [community report](https://github.com/Producdevity/ufo50-miyoo-mini-port/issues/1)
 identifies capitalized Textures and missing audio files and confirms recovery
 after correcting the copy. The runtime now accepts capitalized asset paths;
 missing referenced audio files are rejected before video/audio setup. Host
