@@ -6,6 +6,7 @@
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(VM_runGlobalReadTests() == 0);
+    CHECK_TEST(VM_runLocalStorageTests() == 0);
     CHECK_TEST(SWRenderer_runCacheTests() == 0);
     CHECK_TEST(SWRenderer_runSpriteTests() == 0);
     Ufo50FrameClock clock = {0};

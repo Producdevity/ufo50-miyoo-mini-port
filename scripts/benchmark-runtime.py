@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import resource
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -45,7 +46,7 @@ def main():
                   platform=platform.platform(), frames=args.frames, repeat=args.repeat,
                   binaries={name: dict(path=str(path.resolve()), sha256=sha256(path))
                             for name, path in [('baseline', args.baseline), ('candidate', args.candidate)]},
-                  runs=[])
+                  complete=False, planned_runs=args.repeat * len(args.only) * 2, runs=[])
     failed = False
     for repeat in range(args.repeat):
         for index in args.only:
@@ -65,11 +66,21 @@ def main():
                 start = time.monotonic()
                 with (run / 'runtime.log').open('wb') as log:
                     try:
-                        code = subprocess.run(command, cwd=args.game.resolve().parent, env=env,
-                                              stdout=log, stderr=subprocess.STDOUT,
-                                              timeout=args.timeout).returncode
-                    except subprocess.TimeoutExpired:
-                        code = 124
+                        process = subprocess.Popen(command, cwd=args.game.resolve().parent, env=env,
+                                                   stdout=log, stderr=subprocess.STDOUT)
+                        try:
+                            code = process.wait(timeout=args.timeout)
+                        except subprocess.TimeoutExpired:
+                            process.kill(); process.wait(); code = 124
+                        except BaseException:
+                            process.terminate()
+                            try:
+                                process.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                process.kill(); process.wait()
+                            raise
+                    except OSError:
+                        code = 127
                 elapsed = time.monotonic() - start
                 after = resource.getrusage(resource.RUSAGE_CHILDREN)
                 log = (run / 'runtime.log').read_text(errors='replace')
@@ -83,8 +94,15 @@ def main():
                 report['runs'].append(row)
                 (output / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
                 print(json.dumps(row), flush=True)
+    report['complete'] = True
+    (output / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
     return int(failed)
 
 
+def stop(signum, frame):
+    raise SystemExit(128 + signum)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, stop)
     raise SystemExit(main())

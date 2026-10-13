@@ -52,6 +52,27 @@ CPU benchmark, 32-bit scaling plus CRT at 640x360 falls from 10.949 to
 the different SDL1 and SDL2 expansion rules. These are isolated display-pass
 timings on the SP, not physical Mini gameplay measurements.
 
+## VM call storage and pacing, 2026-10-13
+
+Frames with up to sixteen locals or arguments use storage on the C call frame.
+Larger frames and sparse writes grow into separate heap buffers. Calls retain
+independent string/array references; recursive slot-map growth and nested
+Create events restore the caller's storage ownership. Synthetic bytecode tests
+cover cold/warm frames, heap growth and values returned from a callee. They pass
+under ASan/UBSan and both native ARM32 SDL library setups.
+
+All fifty recorded host states, images and offline mixer counts match the
+pre-change baseline exactly. Sanitized Barbuta, Golfaria, Vainger and Cyber Owls
+paths pass. A single paired ARM32 CPU run takes 71.31 / 70.57 CPU seconds in
+Golfaria and 65.62 / 64.06 in Vainger before/after, with identical mixer counts.
+These are modest savings in uncapped workloads including startup; they do not
+establish a Mini FPS gain. The global-read shortcut alone was effectively neutral
+in the first pair of longer runs.
+
+Performance logs now report the p95 presentation interval (a half-millisecond
+bucket upper bound), maximum interval and gaps exceeding 1.5 scheduled periods.
+Fresh normal-launch measurements with CRT enabled remain to be collected.
+
 ## Community launch reports and v0.1.1, 2026-10-12
 
 All 14 comments in the refreshed Reddit snapshot were read. One person reports a

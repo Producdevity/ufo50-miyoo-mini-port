@@ -470,11 +470,17 @@ static uint32_t resolveLocalSlot(VMContext* ctx, int32_t varID) {
     // Grow this frame's localVars window to cover `slot` whether the entry is pre-existing or freshly allocated.
     // Pre-existing entries can still be past ctx->localVarCount if a nested call to the same code extended the slot map while the outer frame was suspended (the outer frame's localVarCount is captured at call entry and doesn't follow later growth).
     if (slot >= ctx->localVarCount) {
-        RValue* resizedLocalVars = (RValue *)safeCalloc(slot + 1, sizeof(RValue));
-        if (ctx->localVarCount)
-            memcpy(resizedLocalVars, ctx->localVars, sizeof(RValue) * ctx->localVarCount);
-        free(ctx->localVars);
-        ctx->localVars = resizedLocalVars;
+        if (ctx->localVarsOnStack && slot < VM_MAX_STACK_LOCALS) {
+            memset(ctx->localVars + ctx->localVarCount, 0,
+                sizeof(RValue) * (slot + 1 - ctx->localVarCount));
+        } else {
+            RValue* resizedLocalVars = (RValue *)safeCalloc(slot + 1, sizeof(RValue));
+            if (ctx->localVarCount)
+                memcpy(resizedLocalVars, ctx->localVars, sizeof(RValue) * ctx->localVarCount);
+            if (!ctx->localVarsOnStack) free(ctx->localVars);
+            ctx->localVars = resizedLocalVars;
+            ctx->localVarsOnStack = false;
+        }
         ctx->localVarCount = slot + 1;
     }
     return slot;
@@ -646,12 +652,17 @@ void VM_writeToScriptArgs(VMContext* ctx, int32_t writeIndex, RValue val) {
     // You CAN write to the builtin argumentX variables even though the function does not "have" it as a function argument
     // So we'll need to check if we need to resize the scriptArgs manually...
     if (writeIndex >= ctx->scriptArgCount) {
-        RValue* newScriptArgs = (RValue *)safeCalloc(writeIndex + 1, sizeof(RValue));
-        if (ctx->scriptArgCount > 0) {
-            memcpy(newScriptArgs, ctx->scriptArgs, ctx->scriptArgCount * sizeof(RValue));
-            free(ctx->scriptArgs);
+        if (ctx->scriptArgsOnStack && writeIndex < VM_MAX_STACK_ARGS) {
+            memset(ctx->scriptArgs + ctx->scriptArgCount, 0,
+                sizeof(RValue) * (writeIndex + 1 - ctx->scriptArgCount));
+        } else {
+            RValue* newScriptArgs = (RValue *)safeCalloc(writeIndex + 1, sizeof(RValue));
+            if (ctx->scriptArgCount > 0)
+                memcpy(newScriptArgs, ctx->scriptArgs, ctx->scriptArgCount * sizeof(RValue));
+            if (!ctx->scriptArgsOnStack) free(ctx->scriptArgs);
+            ctx->scriptArgs = newScriptArgs;
+            ctx->scriptArgsOnStack = false;
         }
-        ctx->scriptArgs = newScriptArgs;
         ctx->scriptArgCount = writeIndex + 1;
     }
     RValue_free(&ctx->scriptArgs[writeIndex]); // no-op if we are writing to a resized array that was (originally) out of bounds
@@ -3429,57 +3440,6 @@ static RValue executeLoop(VMContext* ctx) {
 }
 
 // Rewrites WAD 14 bytecode opcodes to use WAD 16 bytecode opcodes
-// Exercise actual PUSHGLB dispatch, including values that must use the fallback.
-int VM_runGlobalReadTests(void) {
-    Variable variables[] = {
-        {.name = "value", .varID = 901},
-        {.name = "missing", .varID = 902},
-        {.name = "pi", .varID = VARIABLE_BUILTIN, .builtinVarId = BUILTIN_VAR_PI}
-    };
-    DataWin data = {.gen8 = {.wadVersion = 17},
-        .vari = {.variables = variables, .variableCount = 3}};
-    uint32_t code[] = {(uint32_t)OP_PUSHGLB << 24 | GML_TYPE_VARIABLE << 16,
-        (uint32_t)VARTYPE_NORMAL << 24, (uint32_t)OP_RET << 24 | GML_TYPE_VARIABLE << 16};
-    Runner runner = {.dataWin = &data};
-    VMContext test = {.dataWin = &data, .runner = &runner, .bytecodeBase = (uint8_t*)code,
-        .codeEnd = sizeof(code), .currentCodeName = "synthetic-global-read",
-        .globalScopeInstance = Instance_create(0, STRUCT_OBJECT_INDEX, 0, 0)};
-    Instance_setSelfVar(test.globalScopeInstance, 901, RValue_makeReal(42));
-    RValue value = executeLoop(&test);
-    require(value.type == RVALUE_REAL && value.real == 42 && test.stack.top == 0);
-
-    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24 | 1;
-    value = executeLoop(&test);
-    require(value.type == RVALUE_UNDEFINED && test.stack.top == 0);
-    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24 | 2;
-    value = executeLoop(&test);
-    require(fabs(RValue_toReal(value) - 3.141592653589793) < 0.0000001);
-
-    Instance_setSelfVar(test.globalScopeInstance, 901, RValue_makeString("owned by slot"));
-    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24;
-    value = executeLoop(&test);
-    require(value.type == RVALUE_STRING && !value.ownsReference && strcmp(value.string, "owned by slot") == 0);
-    RValue_free(&value); // A weak result must not release the slot's string.
-
-    GMLArray* array = GMLArray_create(17, 2);
-    *GMLArray_slot(array, 1) = RValue_makeReal(123);
-    RValue owned = RValue_makeArray(array);
-    Instance_setSelfVar(test.globalScopeInstance, 901, owned);
-    RValue_free(&owned);
-    test.ip = 0;
-    value = executeLoop(&test);
-    require(value.type == RVALUE_ARRAY && value.array == array && !value.ownsReference && array->refCount == 1);
-    RValue_free(&value);
-
-    test.ip = 0; code[1] = (uint32_t)VARTYPE_ARRAY << 24;
-    stackPush(&test, RValue_makeInt32(INSTANCE_GLOBAL));
-    stackPush(&test, RValue_makeInt32(1));
-    value = executeLoop(&test);
-    require(RValue_toReal(value) == 123 && test.stack.top == 0 && array->refCount == 1);
-    Instance_free(test.globalScopeInstance);
-    return 0;
-}
-
 static void rewriteBytecode14To16(VMContext* ctx) {
     DataWin* dw = ctx->dataWin;
     uint8_t* buf = dw->bytecodeBuffer;
@@ -3798,9 +3758,11 @@ void VM_reset(VMContext* ctx) {
     ctx->currentEventObjectIndex = -1;
     ctx->scriptArgs = nullptr;
     ctx->scriptArgCount = 0;
+    ctx->scriptArgsOnStack = false;
     ctx->currentCodeName = nullptr;
     ctx->localVars = nullptr;
     ctx->localVarCount = 0;
+    ctx->localVarsOnStack = false;
     ctx->currentCodeLocalsSlotMap = nullptr;
     ctx->actionRelativeFlag = false;
 
@@ -3850,6 +3812,15 @@ static uint32_t computeLocalsCount(VMContext* ctx, CodeEntry* code) {
     }
 }
 
+// Most event/script frames have only a few locals. Keep their storage on the
+// C frame; sparse BC17 locals can still grow into independent heap storage.
+static void beginCodeLocals(VMContext* ctx, RValue* scratch, uint32_t count) {
+    ctx->localVarsOnStack = count <= VM_MAX_STACK_LOCALS;
+    ctx->localVars = ctx->localVarsOnStack ? scratch : (RValue*)safeCalloc(count, sizeof(RValue));
+    ctx->localVarCount = count;
+    if (ctx->localVarsOnStack && count) memset(scratch, 0, count * sizeof(RValue));
+}
+
 RValue VM_executeCode(VMContext* ctx, int32_t codeIndex) {
     require(codeIndex >= 0 && ctx->dataWin->code.count > (uint32_t) codeIndex);
     CodeEntry* code = &ctx->dataWin->code.entries[codeIndex];
@@ -3862,10 +3833,8 @@ RValue VM_executeCode(VMContext* ctx, int32_t codeIndex) {
 
     setCurrentCodeLocalsSlotMap(ctx);
 
-    uint32_t localsCount = computeLocalsCount(ctx, code);
-    RValue* localVars = localsCount ? (RValue *)safeCalloc(localsCount, sizeof(RValue)) : nullptr;
-    ctx->localVars = localVars;
-    ctx->localVarCount = localsCount;
+    RValue localScratch[VM_MAX_STACK_LOCALS];
+    beginCodeLocals(ctx, localScratch, computeLocalsCount(ctx, code));
 
     // Reset stack for top-level execution
     ctx->stack.top = 0;
@@ -3888,9 +3857,10 @@ RValue VM_executeCode(VMContext* ctx, int32_t codeIndex) {
     repeat(ctx->localVarCount, i) {
         RValue_free(&ctx->localVars[i]);
     }
-    free(ctx->localVars);
+    if (!ctx->localVarsOnStack) free(ctx->localVars);
     ctx->localVars = nullptr;
     ctx->localVarCount = 0;
+    ctx->localVarsOnStack = false;
 
     // Reset all values in the stack (see issue #137)
     // Keep in mind that recent GameMaker versions do seem to emit Pop/Popz when exiting loops (example: when using a repeat + return) but older versions DO need it
@@ -3913,11 +3883,13 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
     frame.savedBytecodeBase = ctx->bytecodeBase;
     frame.savedLocals = ctx->localVars;
     frame.savedLocalsCount = ctx->localVarCount;
+    frame.savedLocalsOnStack = ctx->localVarsOnStack;
     frame.savedCodeName = ctx->currentCodeName;
     frame.savedSavearefBalance = ctx->savearefBalance;
     frame.savedCodeLocalsSlotMap = ctx->currentCodeLocalsSlotMap;
     frame.savedScriptArgs = ctx->scriptArgs;
     frame.savedScriptArgCount = ctx->scriptArgCount;
+    frame.savedScriptArgsOnStack = ctx->scriptArgsOnStack;
     frame.savedCurrentCodeIndex = ctx->currentCodeIndex;
     frame.parent = ctx->callStack;
     ctx->callStack = &frame;
@@ -3934,20 +3906,20 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
 
     setCurrentCodeLocalsSlotMap(ctx);
 
-    uint32_t localsCount = computeLocalsCount(ctx, code);
-    RValue* localVars = localsCount ? (RValue *)safeCalloc(localsCount, sizeof(RValue)) : nullptr;
-    ctx->localVars = localVars;
-    ctx->localVarCount = localsCount;
+    RValue localScratch[VM_MAX_STACK_LOCALS];
+    beginCodeLocals(ctx, localScratch, computeLocalsCount(ctx, code));
 
     // Store arguments in scriptArgs (mirrors GMS 1.4's global argument stack).
     // Callee takes an INDEPENDENT reference for strings (strdup) and arrays (incRef) so
     // the caller's original args remain valid and owner-tracked by the caller.
-    RValue* scriptArgs = nullptr;
-    if (argCount > 0 && args != nullptr) {
-        scriptArgs = (RValue *)safeCalloc(argCount, sizeof(RValue));
-        repeat(argCount, argIdx) {
-            RValue argCopy = RValue_makeIndependent(args[argIdx]);
-            scriptArgs[argIdx] = argCopy;
+    RValue argumentScratch[VM_MAX_STACK_ARGS];
+    ctx->scriptArgsOnStack = argCount <= VM_MAX_STACK_ARGS;
+    RValue* scriptArgs = ctx->scriptArgsOnStack ? argumentScratch : (RValue*)safeCalloc(argCount, sizeof(RValue));
+    if (argCount > 0) {
+        if (args) {
+            repeat(argCount, argIdx) scriptArgs[argIdx] = RValue_makeIndependent(args[argIdx]);
+        } else if (ctx->scriptArgsOnStack) {
+            memset(scriptArgs, 0, argCount * sizeof(RValue));
         }
     }
     ctx->scriptArgs = scriptArgs;
@@ -3981,7 +3953,7 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
         RValue_free(&ctx->localVars[i]);
     }
 
-    free(ctx->localVars);
+    if (!ctx->localVarsOnStack) free(ctx->localVars);
 
     // Free callee script args
     {
@@ -3990,13 +3962,15 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
     }
     }
 
-    free(ctx->scriptArgs);
+    if (!ctx->scriptArgsOnStack) free(ctx->scriptArgs);
 
     ctx->localVars = saved->savedLocals;
     ctx->localVarCount = saved->savedLocalsCount;
+    ctx->localVarsOnStack = saved->savedLocalsOnStack;
     ctx->currentCodeLocalsSlotMap = saved->savedCodeLocalsSlotMap;
     ctx->scriptArgs = saved->savedScriptArgs;
     ctx->scriptArgCount = saved->savedScriptArgCount;
+    ctx->scriptArgsOnStack = saved->savedScriptArgsOnStack;
     ctx->currentCodeName = saved->savedCodeName;
     ctx->currentCodeIndex = saved->savedCurrentCodeIndex;
     ctx->savearefBalance = saved->savedSavearefBalance;
@@ -4009,6 +3983,8 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
 
     return result;
 }
+
+#include "ufo50/vm_selftest.inc"
 
 // ===[ Disassembler ]===
 

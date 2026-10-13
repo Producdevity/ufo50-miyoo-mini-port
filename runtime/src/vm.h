@@ -113,6 +113,7 @@
 
 // Max amount of args a function call can have until the args are heap-alloced.
 #define VM_MAX_STACK_ARGS 16
+#define VM_MAX_STACK_LOCALS 16
 
 // ===[ Variable Types for V17 Array Access ]===
 #define VARTYPE_ARRAYPUSHAF 0x10  // Push array reference (read context)
@@ -133,11 +134,13 @@ typedef struct CallFrame {
     uint8_t* savedBytecodeBase;
     RValue* savedLocals;
     uint32_t savedLocalsCount;
+    bool savedLocalsOnStack;
     const char* savedCodeName;
     int32_t savedSavearefBalance;
     IntIntHashMap* savedCodeLocalsSlotMap;
     RValue* savedScriptArgs;
     int32_t savedScriptArgCount;
+    bool savedScriptArgsOnStack;
     int32_t savedCurrentCodeIndex;
     struct CallFrame* parent;
 } CallFrame;
@@ -203,6 +206,7 @@ struct VMContext {
     uint32_t codeEnd;
     RValue* localVars;
     uint32_t localVarCount;
+    bool localVarsOnStack;
     struct Instance* globalScopeInstance; // used when GLOB scripts are being executed, and used for the "global" reference
     struct Instance* currentInstance;
     struct Instance* otherInstance; // "other" instance for collision events
@@ -220,6 +224,7 @@ struct VMContext {
     EnvFrame* envStack; // Environment stack for with-statements (PushEnv/PopEnv)
     RValue* scriptArgs;       // Arguments passed to current script (nullptr for non-script code)
     int32_t scriptArgCount;   // Number of arguments passed
+    bool scriptArgsOnStack;
     int32_t selfId;
     int32_t otherId;
     // Current event context (set by Runner_executeEvent, -1 when not in an event)
@@ -312,6 +317,7 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
 void VM_free(VMContext* ctx);
 int VM_runIntegerTests(VMContext* ctx);
 int VM_runGlobalReadTests(void);
+int VM_runLocalStorageTests(void);
 bool VM_isObjectOrDescendant(DataWin* dataWin, int32_t objectIndex, int32_t targetObjectIndex);
 int32_t VM_resolveInstanceTarget(VMContext* ctx, int32_t target);
 void VM_buildCrossReferences(VMContext* ctx);
