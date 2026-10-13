@@ -312,7 +312,13 @@ static void swrDrawSpriteInternal(
         for (int y = 0, ys = iys; y < dh; y++, ys += oys) {
             uintpixel_t* dst = &swr->fb[(dy + y) * swr->fbPitch + dx];
             size_t row = (size_t)(sy + ys) * texture->width + sx;
-            if (texture->indices) {
+            if (texture->indices && texture->indexBits == 8) {
+                const uint8_t* indices = texture->indices + row;
+                for (int x = 0, xs = ixs; x < dw; x++, xs += oxs) {
+                    uintpixel_t pixel = texture->palette[indices[xs]];
+                    if (opaque(pixel)) dst[x] = pixel;
+                }
+            } else if (texture->indices) {
                 unsigned bits = texture->indexBits, mask = (1u << bits) - 1;
                 for (int x = 0, xs = ixs; x < dw; x++, xs += oxs) {
                     size_t bit = (row + xs) * bits;
@@ -1042,14 +1048,24 @@ void swrDrawText(SWRenderer* swr, const char* text, float x, float y, float xsca
 }
 
 int SWRenderer_runSpriteTests(void) {
-    uint32_t rgba[8 * 8];
-    repeat(64, i) rgba[i] = i % 4 == 0 ? 0 : 0xFF000000 | ((i + 1) * 0x010203);
-    SWTexture* palette = swrCreateTexture((uint8_t*)rgba, 8, 8);
-    SWTexture* raw = swrCreateTextureEx(rgba, 8, 8, true);
+    uint32_t rgba[5][8 * 8];
+    SWTexture* textures[5];
+    int colors[] = {64, 2, 4, 16, 64};
+    repeat(5, storage) {
+        repeat(64, i) {
+            int index = i % colors[storage];
+            rgba[storage][i] = storage == 0 || storage == 4 ?
+                (i % 4 == 0 ? 0 : 0xFF000000 | ((i + 1) * 0x010203)) :
+                (index == 0 ? 0 : 0xFF000000 | (index * 0x010203));
+        }
+        textures[storage] = storage == 0 ? swrCreateTextureEx(rgba[storage], 8, 8, true) :
+                                          swrCreateTexture((uint8_t*)rgba[storage], 8, 8);
+        if (storage) require(textures[storage]->indexBits == (1 << (storage - 1)));
+    }
     uintpixel_t expected[20 * 16], actual[20 * 16], fallback[20 * 16];
     SWRenderer swr = {.width=20, .height=16, .fbPitch=20,
         .portW=20, .portH=16, .maxX=20, .maxY=16, .blendMode=bm_normal};
-    repeat(2, storage) repeat(4, flip) repeat(4, clip) repeat(3, style) repeat(3, scale) {
+    repeat(5, storage) repeat(4, flip) repeat(4, clip) repeat(3, style) repeat(3, scale) {
         repeat(320, i) expected[i] = actual[i] = fallback[i] = 0xFF123456;
         int extent = scale == 0 ? 8 : scale == 1 ? 16 : 4;
         int dw = flip & 1 ? -extent : extent, dh = flip & 2 ? -extent : extent;
@@ -1057,7 +1073,7 @@ int SWRenderer_runSpriteTests(void) {
         int y = clip == 3 ? -2 : (dh < 0 ? 12 : 4);
         uintpixel_t color = style == 1 ? 0xFF402080 : 0xFFFFFFFF;
         int alpha = style == 2 ? 128 : 256;
-        SWTexture* texture = storage ? palette : raw;
+        SWTexture* texture = textures[storage];
         swr.fb = fallback; swr.spriteFastPath = false;
         swrDrawSpriteInternal((Renderer*)&swr, x, y, dw, dh, texture, 0, 0, 8, 8, color, alpha);
         swr.fb = actual; swr.spriteFastPath = true;
@@ -1069,7 +1085,7 @@ int SWRenderer_runSpriteTests(void) {
             if (ox < 0 || oy < 0 || ox >= extent || oy >= extent) continue;
             int tx = ((flip & 1 ? extent - 1 - ox : ox) * 8) / extent;
             int ty = ((flip & 2 ? extent - 1 - oy : oy) * 8) / extent;
-            uintpixel_t pixel = swrConvertPixelTexture(rgba[ty * 8 + tx]);
+            uintpixel_t pixel = swrConvertPixelTexture(rgba[storage][ty * 8 + tx]);
             if (opaque(pixel)) alphaBlend(&expected[py * 20 + px], tint(color, pixel), alpha, 256 - alpha);
         }
         require(memcmp(expected, actual, sizeof(actual)) == 0);
@@ -1077,8 +1093,8 @@ int SWRenderer_runSpriteTests(void) {
     }
     // Source rectangles outside an atlas may only sample pixels inside it.
     swr.fb = actual;
-    swrDrawSpriteInternal((Renderer*)&swr, 0, 0, 16, 16, palette, -2, -2, 12, 12, 0xFFFFFFFF, 256);
-    swrFreeTexture(raw); swrFreeTexture(palette);
-    logInfo("Sprite selftests passed: independent pixel oracle, RGBA/palette, scaling, clipped flips, tint and alpha\n");
+    swrDrawSpriteInternal((Renderer*)&swr, 0, 0, 16, 16, textures[4], -2, -2, 12, 12, 0xFFFFFFFF, 256);
+    repeat(5, storage) swrFreeTexture(textures[storage]);
+    logInfo("Sprite selftests passed: 720 independent pixel comparisons, RGBA and 1/2/4/8-bit palettes, scaling, clipped flips, tint and alpha\n");
     return 0;
 }
