@@ -28,11 +28,17 @@ def main():
     parser.add_argument('--frames', type=int, default=9000)
     parser.add_argument('--repeat', type=int, default=3)
     parser.add_argument('--timeout', type=int, default=180)
+    parser.add_argument('--loader', type=Path, help='Optional matching ELF loader for copied target libraries')
+    parser.add_argument('--library-path', help='Library search path passed to that loader')
     args = parser.parse_args()
     if not all(p.is_file() for p in [args.baseline, args.candidate, args.game]):
         parser.error('Both runtimes and owned data.win must exist')
     if args.frames < 6000 or args.repeat < 1 or args.timeout < 1 or any(i < 1 or i > 50 for i in args.only):
         parser.error('Use >=6000 frames, positive repeat/timeout, and game indexes 1–50')
+    if args.loader and not args.loader.is_file():
+        parser.error('Loader must be an existing file')
+    if args.library_path and not args.loader:
+        parser.error('--library-path requires --loader')
     args.output.mkdir(parents=True, exist_ok=False)
     output = args.output.resolve()
     spec = spec_from_file_location('library', Path(__file__).with_name('test-library.py'))
@@ -47,6 +53,9 @@ def main():
                   binaries={name: dict(path=str(path.resolve()), sha256=sha256(path))
                             for name, path in [('baseline', args.baseline), ('candidate', args.candidate)]},
                   complete=False, planned_runs=args.repeat * len(args.only) * 2, runs=[])
+    if args.loader:
+        report['loader'] = dict(path=str(args.loader.resolve()), sha256=sha256(args.loader),
+                                library_path=args.library_path)
     failed = False
     for repeat in range(args.repeat):
         for index in args.only:
@@ -62,6 +71,11 @@ def main():
                            '--load-type', 'load-per-chunk', '--window-size', '384x216',
                            '--save-folder', str(run / 'saves'), '--seed', '1234', '--headless',
                            '--playback-inputs', str(inputs), '--exit-at-frame', str(args.frames)]
+                if args.loader:
+                    prefix = [str(args.loader.resolve())]
+                    if args.library_path:
+                        prefix += ['--library-path', args.library_path]
+                    command = prefix + command
                 before = resource.getrusage(resource.RUSAGE_CHILDREN)
                 start = time.monotonic()
                 with (run / 'runtime.log').open('wb') as log:

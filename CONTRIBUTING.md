@@ -168,3 +168,8 @@ For repeated CPU comparisons, run `scripts/benchmark-runtime.py BASELINE
 CANDIDATE data.win OUTPUT` with isolated evidence paths. It alternates ordering
 and drains the real mixer at simulated time. These uncapped workloads include
 startup and cannot establish device FPS or speaker output.
+
+For copied target libraries, add `--loader /path/to/ld-linux-armhf.so.3` and
+`--library-path /path/to/target-libs`. The report retains the real runtime hashes
+and records the loader separately. This still uses the development device's
+CPU and kernel; copied Mini libraries do not make it a physical Mini test.
