@@ -38,6 +38,57 @@ memory headroom and gameplay frame rates still need a fresh Mini test. The SP
 has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
 
+## Further CPU work, 2026-10-13
+
+A fresh profile identified repeated collision-cell scans and packed-index work
+in native-size sprite rows. Collision cells are filled as a complete rectangle;
+the broad phase now checks its endpoints, with a direct one-cell path. It keeps
+the full ordered target snapshot and refreshes the grid after handlers. Byte-indexed
+sprite rows now read palette indexes directly; 1/2/4-bit pages keep their packed
+path. Neither change adds persistent memory or skips game events.
+
+The collision predicate passes 3,125 comparisons against independent cell
+enumeration. Sprite tests cover 720 complete images across RGBA and every
+palette width, clipped flips, scaling, tint and alpha. Both native ARM32 library
+setups and sanitizer checks pass. All 50 recorded host states, images and offline
+mixer counts remain identical to v0.1.2.
+
+In a single paired, fixed-clock ARM32 workload including startup and the offline
+mixer, Golfaria takes 70.58 / 67.31 CPU seconds before/after and Vainger takes
+64.58 / 63.17. These are 4.6% and 2.2% savings in those paths, not measured Mini
+FPS gains. Two earlier collision-only pairs saved about 3.8% in Golfaria and
+cost about 0.9% in Vainger; the palette change improves the combined result.
+The isolated 8-bit palette row benchmark falls from 0.0206 to 0.0144 ms for
+8-pixel rows and 0.7324 to 0.4558 ms for 384-pixel rows, with matching pixels.
+An RGBA NEON copy prototype slowed flipped rows and was not included.
+
+Fresh normal SP Ports runs use Hard CRT, recorded inputs and stock 1.512 GHz:
+
+| Game | Gameplay window | Presentations/s | Logic steps/s | Largest interval | Gaps over 50 ms |
+| --- | --- | --- | --- | --- | --- |
+| Golfaria | 81.753 s | 30.005 | 59.998 | 41.086 ms | 0 |
+| Vainger | 88.867 s | 30.000 | 60.000 | 55.020 ms | 1 |
+
+The tested binary is SHA256
+`77cad5222aec8b6f6c433fb1d2386ddf76bf1150c19f653334406af56ff4d8b7`.
+Audio callbacks contain nonzero samples, active framebuffer captures show CRT,
+and both runs exit cleanly. Golfaria uses frames 5400–10300; the final 400 frames
+of the original window were excluded in both comparisons because a late
+handoff-check capture added diagnostic I/O. Vainger uses 5400–10700. Scripted
+captures follow frame 10800. An earlier Vainger run whose observer expired
+before launch is retained privately and excluded from timing acceptance.
+The isolated 55 ms Vainger gap remains; these samples do not establish a locked
+rate throughout the collection or on the Mini.
+
+Linux performance logs now include peak resident memory and major page faults
+once per second. The Golfaria peak of 91,800 KiB matches the process monitor.
+A separate CPU-only run of the Mini binary with its copied SDL library peaks
+at 81,704 KiB in Vainger. It uses existing MI load stubs and the SP's kernel and
+allocator, and excludes the physical Mini display and audio path. The card's
+previous startup log reports 103,472 KiB RAM and no swap. Fresh physical Mini
+logs are required before changing the 24 MiB texture budget or claiming memory
+headroom on that device.
+
 ## Native CRT setting, 2026-10-13
 
 The game bypasses its desktop shader passes at 1x scale. The software backend
