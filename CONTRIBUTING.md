@@ -147,6 +147,13 @@ It does not measure display flips or game FPS.
 longer than 1.5 times the scheduled display period. The p95 is the upper bound
 of a half-millisecond bucket. Exclude loading, menus and state export from a
 gameplay window; keep the original lines with the report.
+
+For bounded SDL1 keyboard replays, keep the recording active through the exit
+frame. An empty entry at that frame is sufficient. Otherwise the physical
+controller becomes active when the recording ends, and firmware wake inputs
+can change the game. Check the input trace before accepting a timing comparison.
+Use `scripts/compare-states.py --only 21 33 23 18 29` when comparing a selected
+set of longer library paths; the default still checks all fifty games.
 On Linux, `Perf memory:` records peak resident memory in KiB and major page
 faults since the previous sample. The first sample includes startup faults.
 These fields help distinguish CPU-heavy frames from paging on the Mini.
