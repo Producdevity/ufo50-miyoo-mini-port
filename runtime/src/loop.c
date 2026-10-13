@@ -14,6 +14,9 @@
 #include "string_compat.h"
 #include <time.h>
 #include <signal.h>
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #include <mmsystem.h>
@@ -997,6 +1000,9 @@ int loop(CommandLineArgs args, const char *argv0) {
         Ufo50PresentStats presentStats = {0};
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
         uint64_t perfWork = 0, perfDrawWork = 0, perfPresentWork = 0;
+#ifdef __linux__
+        long perfMajorFaults = 0;
+#endif
         while (true) {
             if (runner->shouldExit || shouldWindowClose) {
                 actuallyShuttingDown = true;
@@ -1396,6 +1402,14 @@ int loop(CommandLineArgs args, const char *argv0) {
                     perfPresents ? perfPresentWork / 1000000.0 / perfPresents : 0,
                     Ufo50PresentStats_p95(&presentStats), presentStats.maximum / 1000000.0,
                     (unsigned long long)presentStats.longIntervals);
+#ifdef __linux__
+                struct rusage usage;
+                if (getrusage(RUSAGE_SELF, &usage) == 0) {
+                    logInfo("Perf memory: frame=%d hwm_kib=%ld major_faults=%ld\n",
+                        runner->frameCount, usage.ru_maxrss, usage.ru_majflt - perfMajorFaults);
+                    perfMajorFaults = usage.ru_majflt;
+                }
+#endif
                 Ufo50PresentStats_reset(&presentStats);
                 perfStart = lastFrameTime; perfSteps = perfDraws = perfPresents = 0;
                 perfWork = perfDrawWork = perfPresentWork = 0;
