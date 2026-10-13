@@ -11861,7 +11861,7 @@ static RValue builtin_collision_rectangle(VMContext* ctx, RValue* args, int32_t 
         Instance* inst = runner->instanceSnapshots[snapIdx];
         if (!inst->active) continue;
         if (notme && inst == self) continue;
-        if (useGrid && !inst->spatialGridDirty && arrlenu(inst->collisionCells) &&
+        if (useGrid && !inst->destroyed && !inst->spatialGridDirty && arrlenu(inst->collisionCells) &&
             !SpatialGrid_instanceOverlapsRange(inst, range)) continue;
 
         if (!Collision_rectOverlapsInstance(ctx->runner, inst, x1, y1, x2, y2)) continue;

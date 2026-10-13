@@ -67,6 +67,17 @@ static int Ufo50_runRectangleQueryTests(VMContext* ctx) {
         RValue_makeReal(4194304), RValue_makeReal(4194304), RValue_makeReal(INSTANCE_ALL),
         RValue_makeReal(0), RValue_makeReal(0)};
     Ufo50_checkRectangleQuery(ctx, huge); comparisons++;
+    // Destroy/Cleanup events run while destroyed instances are still active.
+    // Their setters remove grid membership without refreshing the old cell list.
+    Instance* dying = runner->instances[1];
+    dying->destroyed = true;
+    VMBuiltins_setVariable(ctx, dying, BUILTIN_VAR_X, "x", RValue_makeReal(400), 0);
+    VMBuiltins_setVariable(ctx, dying, BUILTIN_VAR_Y, "y", RValue_makeReal(400), 0);
+    InstanceBBox dyingBox = Collision_computeBBox(runner, dying);
+    RValue destroyArgs[] = {RValue_makeReal(dyingBox.left - 1), RValue_makeReal(dyingBox.top - 1),
+        RValue_makeReal(dyingBox.right + 1), RValue_makeReal(dyingBox.bottom + 1),
+        RValue_makeReal(dying->instanceId), RValue_makeReal(0), RValue_makeReal(0)};
+    Ufo50_checkRectangleQuery(ctx, destroyArgs); comparisons++;
     // Unindexed candidates must still reach the narrow phase.
     arrsetlen(runner->instances[0]->collisionCells, 0);
     RValue missing[] = {RValue_makeReal(-200), RValue_makeReal(600), RValue_makeReal(0),
