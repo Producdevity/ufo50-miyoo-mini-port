@@ -5,7 +5,7 @@ runtimes and their exact source, with game assets excluded.
 
 The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
 movement, jumping, attacking, pause, returning to the library, normal quit and
-persistent save reload. Digital audio reaches the codec sink. The latest
+persistent save reload. Digital audio reaches the codec sink. Earlier
 30 Hz presentation tests use the release-mode ARM32 runtime on the SP at its
 stock 1.512 GHz clock, with CRT enabled:
 
@@ -37,6 +37,61 @@ The current launcher enables panel rotation. Upright display, speaker output,
 memory headroom and gameplay frame rates still need a fresh Mini test. The SP
 has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
+
+## Rectangle queries and broader CRT checks, 2026-10-13
+
+Waldorf's Journey profiling found repeated bounding-box calculations in rectangle queries.
+The runner now checks the existing spatial cells first, while retaining the full
+candidate snapshot and its order. Exact geometry still decides collisions.
+Unindexed or dirty candidates, coordinates outside the cell range and instances
+running Destroy/Cleanup events use the original narrow path. No game events are
+skipped and no persistent cache is added.
+
+A new regression reproduces a moved instance during its Destroy event. The
+initial broad phase returned the wrong result; the explicit fallback fixes it.
+All 11,667 full-traversal comparisons pass on host, under ASan/UBSan and in both
+native ARM32 SDL setups. All fifty 6,000-step recorded paths preserve complete
+states, images and offline mixer counts. Five longer 11,000-step paths also
+match. Two alternating host CPU pairs for the initial prototype save 33.1% in Waldorf's Journey; Golfaria costs
+about 3.0% more and Vainger saves about 0.7%. These host workloads include
+startup and are not Mini FPS measurements.
+
+The hardware replays use Hard CRT, isolated saves, normal Ports launching and
+the SP's stock 1.512 GHz clock. Each recording includes an empty entry at frame
+11000, keeping physical gamepad inputs masked through exit. Earlier runs whose
+recordings ended at frame 4508 are retained privately and excluded from this
+comparison: periodic firmware wake taps could reach the game. The controller
+initialization line is retained; acceptance rejects actual button-event lines.
+
+The measured window is frames 5400–10700. Active-plane captures follow frame
+10800, and final state export is outside the window. Clock traces and all
+presentation gaps are retained. Fresh Mini measurements remain necessary;
+these results do not establish a steady rate on its different hardware or
+across every level of the collection.
+
+| Game | Index | Window | Seconds | Presentations/s | Logic steps/s | Largest interval | Gaps over 50 ms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Mooncat | 13 | 5400–10700 | 88.883 | 30.006 | 60.000 | 35.208 ms | 0 |
+| Golfaria | 18 | 5400–10700 | 88.786 | 30.005 | 59.998 | 39.134 ms | 0 |
+| Waldorf's Journey | 21 | 5400–10700 | 88.850 | 30.006 | 60.000 | 37.212 ms | 0 |
+| Onion Delivery | 23 | 5400–10700 | 88.850 | 30.006 | 60.000 | 37.525 ms | 0 |
+| Vainger | 29 | 5400–10700 | 88.950 | 30.006 | 60.000 | 43.078 ms | 0 |
+| Fist Hell | 33 | 5400–10700 | 88.967 | 30.000 | 60.000 | 38.981 ms | 0 |
+| Overbold (game-over screen) | 34 | 5400–10700 | 88.900 | 30.000 | 60.000 | 37.027 ms | 0 |
+
+The accepted binary is SHA256
+`37ed753fefe6568ada28b01ec0621685d8dee13642e77dbd0c246a6e98131051`.
+Waldorf's Journey improves from 26.673 to 30.006 presentations/s in the protected
+comparison. Mean frame work falls from 18.734 to 11.370 ms. All recorded audio
+callbacks contain nonzero samples, and active-plane captures show Hard CRT.
+Overbold's late capture is a game-over screen, so its row is not gameplay FPS
+acceptance. A separate normal-launch fight test completed 5,000 steps and
+captured after frame 4800, outside the planned 3000–4500 timing window. The SP
+became unreachable before those logs and pixels could be copied; that active
+fight result remains pending. Its corresponding host capture shows active play.
+Game names come from the recorded `mGameTitle` table. Earlier private labels for
+indexes 21 and 23 were wrong and have been corrected to Waldorf's Journey and
+Onion Delivery. The original indexes, room IDs and logs are retained.
 
 ## Further CPU work, 2026-10-13
 
