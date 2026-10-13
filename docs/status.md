@@ -38,6 +38,30 @@ memory headroom and gameplay frame rates still need a fresh Mini test. The SP
 has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
 
+## Overbold pause timing, 2026-10-13
+
+Aggregate timing reproduced both Overbold gaps while the game requested 12 Hz
+instead of 60 Hz. The waits were about 77.6 ms; overshoot stayed below 0.01 ms
+and maximum step work was 9.2 ms. The frame limiter was following the game's
+rate change. A focused regression then reproduced an extra discarded redraw
+when 60 Hz resumed. The scheduler now displays that first resumed update and
+starts its normal 30 Hz cadence from there. The game-requested pause is retained.
+
+A normal SP Ports fight with Hard CRT at stock 1.512 GHz improves from 29.856
+to 29.938 presentations/s over the 3000–4500 sample. The largest interval falls
+from 103.368 to 83.903 ms; two intervals still exceed 50 ms and both coincide
+with the 12 Hz request. The simulation rate stays at 59.670 steps/s across the
+whole sample, including those pauses. Active-plane captures show level 1
+combat with CRT, audio callbacks contain nonzero samples, and both runs exit
+cleanly. This is SP evidence, not physical Mini FPS.
+
+The corrected SP binary is SHA256
+`8b11605886e0ed276e94c776cdbdb75564dffa9057abf591cb1ac4df91876e84`.
+The regression fails before the fix and passes afterward on host, ASan/UBSan
+and both ARM32 SDL setups. All fifty 6,000-step host states, final images and
+offline mixer counts match v0.1.4 exactly. Native wall-clock replays differ in
+four elapsed-time fields; the fixed-time host comparison remains exact.
+
 ## Rectangle queries and broader CRT checks, 2026-10-13
 
 Waldorf's Journey profiling found repeated bounding-box calculations in rectangle queries.

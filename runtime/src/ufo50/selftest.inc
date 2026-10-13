@@ -20,6 +20,15 @@ int Ufo50_runCompatibilityTests(void) {
     repeat(500, i) draws += Ufo50FrameClock_draw(&clock, 30, 50);
     CHECK_TEST(draws == 300);
     CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 30));
+    // Overbold briefly requests 12 Hz for a hit pause, then returns to 60 Hz.
+    // The first resumed step must appear immediately instead of being discarded.
+    clock = (Ufo50FrameClock){0};
+    CHECK_TEST(!Ufo50FrameClock_draw(&clock, 30, 60));
+    CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 60));
+    CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 12));
+    CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 60));
+    CHECK_TEST(!Ufo50FrameClock_draw(&clock, 30, 60));
+    CHECK_TEST(Ufo50FrameClock_draw(&clock, 30, 60));
     CHECK_TEST(Ufo50FrameClock_deadline(1000, 1120, 100) == 1100);
     CHECK_TEST(Ufo50FrameClock_deadline(1100, 1150, 100) == 1200);
     CHECK_TEST(Ufo50FrameClock_deadline(1000, 2500, 100) == 2500);
