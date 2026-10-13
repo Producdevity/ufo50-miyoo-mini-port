@@ -63,8 +63,9 @@ recordings ended at frame 4508 are retained privately and excluded from this
 comparison: periodic firmware wake taps could reach the game. The controller
 initialization line is retained; acceptance rejects actual button-event lines.
 
-The measured window is frames 5400–10700. Active-plane captures follow frame
-10800, and final state export is outside the window. Clock traces and all
+The long replays use frames 5400–10700, with active-plane captures after frame
+10800. The shorter Overbold fight uses frames 3000–4500 and a capture at frame
+4848. Final state export is outside each window. Clock traces and all
 presentation gaps are retained. Fresh Mini measurements remain necessary;
 these results do not establish a steady rate on its different hardware or
 across every level of the collection.
@@ -77,6 +78,7 @@ across every level of the collection.
 | Onion Delivery | 23 | 5400–10700 | 88.850 | 30.006 | 60.000 | 37.525 ms | 0 |
 | Vainger | 29 | 5400–10700 | 88.950 | 30.006 | 60.000 | 43.078 ms | 0 |
 | Fist Hell | 33 | 5400–10700 | 88.967 | 30.000 | 60.000 | 38.981 ms | 0 |
+| Overbold (active fight) | 34 | 3000–4500 | 25.267 | 29.881 | 59.683 | 103.692 ms | 2 |
 | Overbold (game-over screen) | 34 | 5400–10700 | 88.900 | 30.000 | 60.000 | 37.027 ms | 0 |
 
 The accepted binary is SHA256
@@ -85,13 +87,22 @@ Waldorf's Journey improves from 26.673 to 30.006 presentations/s in the protecte
 comparison. Mean frame work falls from 18.734 to 11.370 ms. All recorded audio
 callbacks contain nonzero samples, and active-plane captures show Hard CRT.
 Overbold's late capture is a game-over screen, so its row is not gameplay FPS
-acceptance. A separate normal-launch fight test completed 5,000 steps and
-captured after frame 4800, outside the planned 3000–4500 timing window. The SP
-became unreachable before those logs and pixels could be copied; that active
-fight result remains pending. Its corresponding host capture shows active play.
+acceptance. The separate 5,000-step fight test has now been retrieved. Its
+active-plane capture shows the player in level 1 with two targets and Hard CRT.
+The sampled window averages 29.881 presentations/s, with gaps of 103.692 and
+83.483 ms. The clock stays at 1.512 GHz and the sampled memory logs report no
+major page faults. Those gaps remain unresolved; this is not a locked 30 FPS
+result. The run exits cleanly with nonzero audio callback samples.
 Game names come from the recorded `mGameTitle` table. Earlier private labels for
 indexes 21 and 23 were wrong and have been corrected to Waldorf's Journey and
 Onion Delivery. The original indexes, room IDs and logs are retained.
+
+The v0.1.4 Mini release was installed on the Onion card after a full backup.
+All eight packaged files match the release, and all 518 game files and seven
+save/config/log files retain their original hashes. The backup's recovery bytes
+were checked too, then the card was synced and safely ejected. No new gameplay
+logs were present from the previous v0.1.3 installation. Physical Mini FPS for
+v0.1.4 remains unmeasured.
 
 ## Further CPU work, 2026-10-13
 
