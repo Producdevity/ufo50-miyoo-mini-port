@@ -1,6 +1,6 @@
 # Development status
 
-Updated 2026-10-13. The public source is on `master`; packages contain ARM32
+Updated 2026-10-14. The public source is on `master`; packages contain ARM32
 runtimes and their exact source, with game assets excluded.
 
 The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
@@ -61,6 +61,37 @@ The regression fails before the fix and passes afterward on host, ASan/UBSan
 and both ARM32 SDL setups. All fifty 6,000-step host states, final images and
 offline mixer counts match v0.1.4 exactly. Native wall-clock replays differ in
 four elapsed-time fields; the fixed-time host comparison remains exact.
+
+## Target-library CPU experiments and Mini logs, 2026-10-14
+
+Three follow-up CPU experiments were tested in two alternating Golfaria/Vainger
+pairs, each with 6,000 steps, isolated saves and the real offline mixer. They use
+the Mini binaries, copied Mini loader/C/SDK SDL libraries and the SP CPU at
+1.512 GHz. Every retained clock sample stays at that frequency and performance
+governor. The inherited governor is restored afterward.
+
+| Experiment | Golfaria mean CPU seconds, before/after | Vainger mean CPU seconds, before/after |
+| --- | --- | --- |
+| Bounded custom draw sorter | 67.660 / 68.030 | 61.740 / 62.860 |
+| Direct draw-key comparator | 67.730 / 68.080 | 61.905 / 63.320 |
+| Smaller interpreter compilation | 67.410 / 69.000 | 62.585 / 63.990 |
+
+None improved the full target-library workloads, so all three were removed.
+The custom sorter had improved isolated sort timings, and the smaller compiler
+setting reduced the main interpreter from 32,336 to 26,448 bytes. Those results
+did not justify shipping either change. Original hot paths and compiler settings
+remain. Complete logs, paired ordering and failed prototypes are retained
+privately; these are CPU experiments, not physical Mini FPS measurements.
+
+A separate Mini **UFO50-FPS-Test** entry now runs Golfaria, Vainger and Overbold
+with Hard CRT, protected recorded inputs and fresh saves. It stops each case at
+5,000 steps or a four-minute deadline, then returns to Ports. The installer
+backs up the prior installation and verifies unchanged game files and regular
+saves. Signal, timeout, rollback and interval-reporting fixtures pass. Three
+real owned-game host replays complete through the driver with matching selected
+games, CRT config and input protection through exit. Actual Mini timings remain
+pending; its card was absent when this entry was prepared. See CONTRIBUTING.md
+for installation and log collection.
 
 ## Rectangle queries and broader CRT checks, 2026-10-13
 

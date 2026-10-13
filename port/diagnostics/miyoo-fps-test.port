@@ -1,0 +1,9 @@
+#!/bin/sh
+GameName="UFO 50 FPS test"
+GameDir="UFO50"
+GameExecutable="miyoo-fps-test.sh"
+GameDataFile="data.win"
+KillAudioserver=0
+PerformanceMode=0
+Arguments=""
+/mnt/SDCARD/Emu/PORTS/launch_standalone.sh "$GameName" "$GameDir" "$GameExecutable" "$Arguments" "$GameDataFile" "$KillAudioserver" "$PerformanceMode"

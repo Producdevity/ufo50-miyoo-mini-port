@@ -173,3 +173,36 @@ For copied target libraries, add `--loader /path/to/ld-linux-armhf.so.3` and
 `--library-path /path/to/target-libs`. The report retains the real runtime hashes
 and records the loader separately. This still uses the development device's
 CPU and kernel; copied Mini libraries do not make it a physical Mini test.
+
+## Collect Mini timing logs
+
+The optional **Action → UFO50-FPS-Test** entry runs Golfaria, Vainger and
+Overbold with Hard CRT and exits after three bounded replays. Each uses fresh
+saves under `Saves/CurrentProfile/saves/UFO50-tests`; regular saves and the normal
+UFO50 entry stay separate. Inputs remain masked through the end of each replay.
+The test takes about five minutes at full speed and stops any case after four
+minutes if it cannot finish.
+
+From the clean release checkout, install the verified release first, then add
+the test entry:
+
+```sh
+python3 scripts/setup-miyoo-tests.py --sd /Volumes/MIYOO
+```
+
+Eject the card safely and launch **UFO50-FPS-Test** on the Mini once. It returns
+to Ports when finished. Remount the card and inspect the new directory under
+`Saves/CurrentProfile/saves/UFO50-tests`:
+
+```sh
+python3 scripts/summarize-miyoo-tests.py /path/to/the/new/test-directory
+```
+
+The report retains long intervals, including game-requested hit pauses. Keep the
+original logs when comparing work time, waits, memory and audio output. The PNGs
+show game rendering before the final native CRT pass; callback counts do not
+establish physical speaker quality.
+
+The diagnostic entry is a developer add-on and stays out of the normal install
+ZIP. Its installer backs up the card's UFO50 installation, verifies unchanged
+game files and saves, and clears only Onion's generated Ports list cache.
