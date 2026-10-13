@@ -159,6 +159,11 @@ faults since the previous sample. The first sample includes startup faults.
 These fields help distinguish CPU-heavy frames from paging on the Mini.
 They are collected once per second only when performance logging is enabled.
 
+`Perf timing:` records the maximum step work, frame wait, wait overshoot and
+requested update-rate range for each reporting window. Use it to distinguish a
+costly frame from a late wake-up or a game's deliberate rate change. Headless
+runs do not wait, so their wait and rate fields are zero.
+
 For repeated CPU comparisons, run `scripts/benchmark-runtime.py BASELINE
 CANDIDATE data.win OUTPUT` with isolated evidence paths. It alternates ordering
 and drains the real mixer at simulated time. These uncapped workloads include

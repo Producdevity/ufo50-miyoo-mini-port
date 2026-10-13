@@ -1000,6 +1000,8 @@ int loop(CommandLineArgs args, const char *argv0) {
         Ufo50PresentStats presentStats = {0};
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
         uint64_t perfWork = 0, perfDrawWork = 0, perfPresentWork = 0;
+        uint64_t perfWorkMaximum = 0, perfWaitMaximum = 0, perfWaitLateMaximum = 0;
+        double perfHzMinimum = 0, perfHzMaximum = 0;
 #ifdef __linux__
         long perfMajorFaults = 0;
 #endif
@@ -1356,7 +1358,9 @@ int loop(CommandLineArgs args, const char *argv0) {
                 }
                 Runner_handlePendingRoomChange(runner);
                 perfSteps++;
-                perfWork += nowNanos() - frameStartNow;
+                uint64_t frameWork = nowNanos() - frameStartNow;
+                perfWork += frameWork;
+                if (perfEnabled && frameWork > perfWorkMaximum) perfWorkMaximum = frameWork;
 
                 if (args.exitAtFrame >= 0 && runner->frameCount >= args.exitAtFrame) {
                     logInfo("Exiting at frame %d (--exit-at-frame)\n", runner->frameCount);
@@ -1378,6 +1382,7 @@ int loop(CommandLineArgs args, const char *argv0) {
                     logInfo("Memory use right now: %zu bytes (%.1f MB)\n", bytes_used, bytes_used / 1024.0f / 1024.0f);
             }
 
+            uint64_t waitStarted = 0;
             // Limit frame rate to room speed (skip in headless mode for max speed!!)
             if (!args.headless && runner->currentRoom->speed > 0) {
                 bool fastForwardTabNow = RunnerKeyboard_checkPressed(runner->keyboard, VK_TAB);
@@ -1387,11 +1392,23 @@ int loop(CommandLineArgs args, const char *argv0) {
                 }
                 fastForwardTabPrev = fastForwardTabNow;
                 double effectiveSpeed = (args.fastForwardSpeed > 0.0 && fastForwardActive) ? args.fastForwardSpeed : args.speedMultiplier;
-                uint64_t targetFrameTime = 1000000000 / ((runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed) * effectiveSpeed);
-                frameDeadline = Ufo50FrameClock_deadline(frameDeadline, nowNanos(), targetFrameTime);
+                double effectiveHz = (runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed) * effectiveSpeed;
+                uint64_t targetFrameTime = 1000000000 / effectiveHz;
+                waitStarted = nowNanos();
+                frameDeadline = Ufo50FrameClock_deadline(frameDeadline, waitStarted, targetFrameTime);
+                if (perfEnabled) {
+                    if (perfHzMinimum == 0 || effectiveHz < perfHzMinimum) perfHzMinimum = effectiveHz;
+                    if (effectiveHz > perfHzMaximum) perfHzMaximum = effectiveHz;
+                }
                 platformSleepUntil(frameDeadline);
             }
             lastFrameTime = nowNanos();
+            if (perfEnabled && waitStarted) {
+                uint64_t waited = lastFrameTime - waitStarted;
+                uint64_t late = lastFrameTime > frameDeadline ? lastFrameTime - frameDeadline : 0;
+                if (waited > perfWaitMaximum) perfWaitMaximum = waited;
+                if (late > perfWaitLateMaximum) perfWaitLateMaximum = late;
+            }
             if (perfEnabled && lastFrameTime - perfStart >= 1000000000ull) {
                 double seconds = (lastFrameTime - perfStart) / 1000000000.0;
                 logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f present_ms=%.3f interval_p95_ms=%.3f interval_max_ms=%.3f long_intervals=%llu\n",
@@ -1402,6 +1419,10 @@ int loop(CommandLineArgs args, const char *argv0) {
                     perfPresents ? perfPresentWork / 1000000.0 / perfPresents : 0,
                     Ufo50PresentStats_p95(&presentStats), presentStats.maximum / 1000000.0,
                     (unsigned long long)presentStats.longIntervals);
+                logInfo("Perf timing: frame=%d work_max_ms=%.3f wait_max_ms=%.3f wait_late_max_ms=%.3f hz_min=%.3f hz_max=%.3f\n",
+                    runner->frameCount, perfWorkMaximum / 1000000.0,
+                    perfWaitMaximum / 1000000.0, perfWaitLateMaximum / 1000000.0,
+                    perfHzMinimum, perfHzMaximum);
 #ifdef __linux__
                 struct rusage usage;
                 if (getrusage(RUSAGE_SELF, &usage) == 0) {
@@ -1413,6 +1434,8 @@ int loop(CommandLineArgs args, const char *argv0) {
                 Ufo50PresentStats_reset(&presentStats);
                 perfStart = lastFrameTime; perfSteps = perfDraws = perfPresents = 0;
                 perfWork = perfDrawWork = perfPresentWork = 0;
+                perfWorkMaximum = perfWaitMaximum = perfWaitLateMaximum = 0;
+                perfHzMinimum = perfHzMaximum = 0;
             }
         }
 
