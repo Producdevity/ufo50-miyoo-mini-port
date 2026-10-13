@@ -5,6 +5,7 @@
 #include "loop.h"
 #include "ufo50/frame_clock.h"
 #include "ufo50/game_files.h"
+#include "ufo50/display_options.h"
 
 #include "platformdefs.h"
 #include "stdio_compat.h"
@@ -1294,6 +1295,9 @@ int loop(CommandLineArgs args, const char *argv0) {
                 Runner_drawPost(runner, fbWidth, fbHeight);
                 renderer->vtable->endFrameEnd(renderer);
                 Runner_drawGUI(runner, fbWidth, fbHeight, gameW, gameH);
+#ifdef ENABLE_SW_RENDERER
+                if (gfx == SOFTWARE) SWRenderer_setOutputCrt(renderer, Ufo50_nativeCrtMode(runner));
+#endif
 
 #ifdef ENABLE_SW_RENDERER
                 const char* swShot = getenv("UFO50_SCREENSHOT");

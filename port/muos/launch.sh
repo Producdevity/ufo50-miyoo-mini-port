@@ -58,6 +58,9 @@ if [ -f "$root/benchmark-frames" ]; then
     ulimit -c unlimited || true
     save="$run/saves"
     mkdir -p "$save"
+    if [ -f "$root/test-config.json" ]; then
+        cp "$root/test-config.json" "$save/config.json"
+    fi
     export UFO50_INPUT_TRACE=1
     export UFO50_SCREENSHOT="$run/frame.png"
     export UFO50_SCREENSHOT_FRAME=$((frames - 1))

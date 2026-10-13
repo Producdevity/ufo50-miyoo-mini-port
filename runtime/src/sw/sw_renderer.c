@@ -11,6 +11,19 @@
 void platformSetNextFramebuffer(uintpixel_t* framebuffer, int width, int height);
 
 
+void SWRenderer_setOutputCrt(Renderer* renderer, int mode) {
+    SWRenderer* swr = (SWRenderer*)renderer;
+    if (mode < 0 || mode > 2) mode = 0;
+    if (mode != swr->outputCrt.mode) {
+        Ufo50_crtMode(&swr->outputCrt, mode);
+        logInfo("Display: native CRT %s\n", mode == 1 ? "soft" : mode == 2 ? "hard" : "off");
+    }
+}
+
+int SWRenderer_getOutputCrt(Renderer* renderer) {
+    return ((SWRenderer*)renderer)->outputCrt.mode;
+}
+
 bool SWRenderer_writeScreenshot(Renderer* renderer, const char* path) {
     SWRenderer* swr = (SWRenderer*)renderer;
     if (!swr->fb || !swr->width || !swr->height) return false;
@@ -18,7 +31,7 @@ bool SWRenderer_writeScreenshot(Renderer* renderer, const char* path) {
     if (sizeof(uintpixel_t) != 4) return false;
     unsigned char* rgb = (unsigned char*)safeMalloc((size_t)swr->width*swr->height*3);
     for (int y = 0; y < swr->height; y++) for (int x = 0; x < swr->width; x++) {
-        uint32_t p = swr->fb[y*swr->fbPitch+x];
+        uint32_t p = Ufo50_crtPixel(&swr->outputCrt, swr->fb[y*swr->fbPitch+x], x, y);
         size_t n = ((size_t)y*swr->width+x)*3;
         rgb[n] = (p >> 16) & 255; rgb[n+1] = (p >> 8) & 255; rgb[n+2] = p & 255;
     }
@@ -31,6 +44,8 @@ static void SWRenderer_init(Renderer* renderer, DataWin* dataWin)
     SWRenderer* swr = (SWRenderer*) renderer;
     
     renderer->dataWin = dataWin;
+    swr->outputCrt.mode = -1;
+    Ufo50_crtMode(&swr->outputCrt, 0);
     
     //allocate texture buffer
     swr->textureCount = dataWin->txtr.count;

@@ -4,6 +4,7 @@
 #include <SDL/SDL.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../ufo50/crt.h"
 
 // The opaque scaled image overwrites its rectangle. Clear just the borders,
 // including when the rectangle changes between frames or buffers are swapped.
@@ -63,6 +64,44 @@ static inline int Ufo50_stretchVideoFallback(SDL_Surface* source, SDL_Surface* s
     int result = SDL_SoftStretch(source, NULL, screen, &target);
     if (result == 0 && rotate180) result = Ufo50_rotateVideoImage(screen, &target);
     return result;
+}
+
+// Apply after scaling so scanlines remain visible on a non-integer display.
+// Coordinates are upright image coordinates, independently of panel rotation.
+static inline int Ufo50_applyVideoCrt(Ufo50Crt* crt, SDL_Surface* screen,
+        const SDL_Rect* image, int mode, int rotate180) {
+    Ufo50_crtMode(crt, mode);
+    if (!crt->mode) return 0;
+    int bytes = screen->format->BytesPerPixel;
+    if (bytes < 2 || bytes > 4 || image->x < 0 || image->y < 0 ||
+        image->x + image->w > screen->w || image->y + image->h > screen->h) return -1;
+    int locked = SDL_MUSTLOCK(screen);
+    if (locked && SDL_LockSurface(screen) < 0) return -1;
+    int canonical = bytes == 4 && screen->format->Rmask == 0xff0000 &&
+        screen->format->Gmask == 0xff00 && screen->format->Bmask == 0xff;
+    for (int y = 0; y < image->h; y++) {
+        Uint8* row = (Uint8*)screen->pixels + (image->y + y) * screen->pitch + image->x * bytes;
+        int uprightY = rotate180 ? image->h - 1 - y : y;
+        for (int x = 0; x < image->w; x++) {
+            Uint32 pixel = 0;
+            memcpy(&pixel, row + x * bytes, (size_t)bytes);
+            int uprightX = rotate180 ? image->w - 1 - x : x;
+            Uint32 shaded;
+            if (canonical) {
+                shaded = Ufo50_crtPixel(crt, pixel, uprightX, uprightY);
+            } else {
+                Uint8 r, g, b;
+                SDL_GetRGB(pixel, screen->format, &r, &g, &b);
+                Uint32 rgb = Ufo50_crtPixel(crt, (Uint32)r << 16 | (Uint32)g << 8 | b, uprightX, uprightY);
+                shaded = SDL_MapRGB(screen->format, (Uint8)(rgb >> 16), (Uint8)(rgb >> 8), (Uint8)rgb);
+                Uint32 colors = screen->format->Rmask | screen->format->Gmask | screen->format->Bmask;
+                shaded = (pixel & ~colors) | (shaded & colors);
+            }
+            memcpy(row + x * bytes, &shaded, (size_t)bytes);
+        }
+    }
+    if (locked) SDL_UnlockSurface(screen);
+    return 0;
 }
 
 typedef struct {

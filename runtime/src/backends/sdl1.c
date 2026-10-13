@@ -6,6 +6,7 @@
 
 #include <SDL/SDL.h>
 #include "sdl1_present.h"
+#include "sw_renderer.h"
 
 #include "common.h"
 #include "input_recording.h"
@@ -24,6 +25,7 @@ static Runner *g_runner;
 static bool g_headless;
 static bool g_nativeSoftware;
 static bool g_rotateSoftware;
+static Ufo50Crt displayCrt;
 static int32_t g_nativeWidth, g_nativeHeight;
 static int32_t fbWidth, fbHeight;
 static SDL_Surface* scr;
@@ -426,12 +428,16 @@ void platformSwapBuffers(void) {
                              (Uint16)width, (Uint16)height};
             SDL_Rect physical = Ufo50_videoImageRect(scr, &dest, g_rotateSoftware);
             Ufo50_clearVideoBorders(scr, &physical);
-            if (Ufo50_stretchVideo(&videoScaler, source, scr, &dest, g_rotateSoftware) < 0) {
+            if (Ufo50_stretchVideo(&videoScaler, source, scr, &dest, g_rotateSoftware) < 0 ||
+                Ufo50_applyVideoCrt(&displayCrt, scr, &physical,
+                    SWRenderer_getOutputCrt(g_runner->renderer), g_rotateSoftware) < 0) {
                 SDL_FillRect(scr, NULL, 0);
                 logError("Video: native framebuffer scaling failed: %s\n", SDL_GetError());
             }
         } else {
             SDL_BlitSurface(nextFb, NULL, scr, NULL);
+            SDL_Rect image = {0, 0, (Uint16)nextFb->w, (Uint16)nextFb->h};
+            Ufo50_applyVideoCrt(&displayCrt, scr, &image, SWRenderer_getOutputCrt(g_runner->renderer), 0);
         }
         SDL_Flip(scr);
     }

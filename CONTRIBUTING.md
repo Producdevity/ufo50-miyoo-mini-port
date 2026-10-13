@@ -74,7 +74,8 @@ Use the normal Ports launcher for behavioral device proof. A file
 `/mnt/mmc/.ufo50-dev/benchmark-frames` containing 60–36000 enables a bounded run
 with isolated saves, final screenshot/state dump, telemetry, and private core
 capture. Optional `test-inputs.json` enables recorded keyboard inputs and
-suppresses physical gamepad state. Remove both files before normal play.
+suppresses physical gamepad state. An optional `test-config.json` seeds that run's isolated config, for display
+setting comparisons. Remove all three files before normal play.
 `timeout 660` bounds diagnostics even if the game stops advancing frames.
 Do not change firmware launch-state files to start a test.
 
@@ -132,6 +133,7 @@ scripts/zig-cc.sh -O2 -I.local/deps/include -Iruntime/src/backends \
 ```
 
 Run the executable with the Mini SDK SDL library available on the ARM32 test
-device. It compares 162 complete 16-bit, 24-bit and 32-bit images in both orientations against SDL's full-clear
-scaling path, including uneven borders and stale pixels from a previous frame.
+device. It compares 486 complete 16-bit, 24-bit and 32-bit images in both orientations against SDL's full-clear
+scaling path, including uneven borders, stale pixels from a previous frame and all three
+CRT settings.
 Performance logs report `present_ms` separately from game drawing.

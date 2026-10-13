@@ -9,6 +9,9 @@ int SWRenderer_runSpriteTests(void);
 
 bool SWRenderer_writeScreenshot(Renderer* renderer, const char* path);
 
+void SWRenderer_setOutputCrt(Renderer* renderer, int mode);
+int SWRenderer_getOutputCrt(Renderer* renderer);
+
 void SWRenderer_setFrameRendering(Renderer* renderer, bool enabled);
 
 void SWRenderer_clearFrameBuffer(Renderer* renderer, uint32_t color);

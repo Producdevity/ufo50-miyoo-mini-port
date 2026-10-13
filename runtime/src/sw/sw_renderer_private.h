@@ -4,6 +4,7 @@
 #include "sw_renderer.h"
 #include "defines.h"
 #include "pixel_convert.h"
+#include "ufo50/crt.h"
 
 // Unimplemented Functions
 //#define UNIMP() do { fprintf(stderr, "NYI %s\n", __func__); } while (0)
@@ -67,6 +68,7 @@ typedef struct
     size_t textureCacheBudget;
     bool spriteFastPath;
     bool discardMainFrame;
+    Ufo50Crt outputCrt;
     
     // Window Properties
     uint16_t width;

@@ -1,6 +1,6 @@
 # Development status
 
-Updated 2026-10-12. The public source is on `master`; packages contain ARM32
+Updated 2026-10-13. The public source is on `master`; packages contain ARM32
 runtimes and their exact source, with game assets excluded.
 
 The muOS SP launches through **Ports → UFO50**. Live Barbuta checks demonstrate
@@ -31,6 +31,24 @@ The current launcher enables panel rotation. Upright display, speaker output,
 memory headroom and gameplay frame rates still need a fresh Mini test. The SP
 has different hardware and more memory.
 These results cover recorded paths, not every level or feature of all 50 games.
+
+## Native CRT setting, 2026-10-13
+
+The game bypasses its desktop shader passes at 1x scale. The software backend
+now reads the existing CRT EFFECT setting and applies a final scanline and
+phosphor-mask pass. Off preserves the unfiltered image; Soft and Hard use the
+strengths of the game's 2x option. This is a native display adaptation, not the
+full desktop blur shader stack. It leaves game framebuffers and gameplay state
+unchanged and uses no enlarged filter surfaces.
+
+A normal SP Ports run switches through Soft, Hard, Soft, Off and Soft, resumes
+Barbuta, and exits normally at frame 7800 with nonzero SDL audio output. Active
+framebuffer captures show the menu choices and filtered gameplay. Host runs
+produce distinct images for all three settings and identical offline audio
+counts. All 486 native pixel comparisons pass with Mini SDK SDL and SP SDL,
+covering 16/24/32-bit surfaces, borders and rotation. The initial scalar pass
+adds presentation overhead; optimization and fresh Mini performance proof
+remain pending.
 
 ## Community launch reports and v0.1.1, 2026-10-12
 
