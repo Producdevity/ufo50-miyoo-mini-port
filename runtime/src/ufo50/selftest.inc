@@ -5,6 +5,7 @@
 #include "ufo50/present_stats.h"
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 #include "ufo50/spatial_selftest.inc"
+#include "ufo50/rectangle_selftest.inc"
 int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(Ufo50_runSpatialRangeTests() == 0);
     CHECK_TEST(VM_runGlobalReadTests() == 0);
@@ -147,6 +148,7 @@ int Ufo50_runCompatibilityTests(void) {
     hmdel(runner->instancesById, gridInstance->instanceId);
     arrsetlen(runner->instances, 0); Instance_free(gridInstance);
     data.sprt.count = 0; data.sprt.sprites = nullptr;
+    CHECK_TEST(Ufo50_runRectangleQueryTests(ctx) == 0);
 
     /* Invalid metadata lookups must cross unloaded sparse audio groups safely. */
     Sound namedSound = {.name = "synthetic"};

@@ -11842,6 +11842,18 @@ static RValue builtin_collision_rectangle(VMContext* ctx, RValue* args, int32_t 
 
     Instance* self = ctx->currentInstance;
 
+    // Keep snapshot order, but reject distant candidates before computing their
+    // exact boxes. Fall back when coordinates cannot fit the grid's int16 cells.
+    SpatialGrid* grid = runner->spatialGrid;
+    const GMLReal cellLimit = (GMLReal)32768 * SPATIAL_GRID_CELL_SIZE;
+    bool useGrid = grid != nullptr && x1 >= -cellLimit && y1 >= -cellLimit &&
+        x2 < cellLimit && y2 < cellLimit;
+    SpatialGridRange range = {0};
+    if (useGrid) {
+        SpatialGrid_syncGrid(runner, grid);
+        range = SpatialGrid_computeCellRange(grid, x1, y1, x2, y2);
+    }
+
     int32_t resultId = INSTANCE_NOONE;
     int32_t snapBase = Runner_pushInstancesForTarget(runner, targetObjIndex);
     int32_t snapEnd  = (int32_t) arrlen(runner->instanceSnapshots);
@@ -11849,6 +11861,8 @@ static RValue builtin_collision_rectangle(VMContext* ctx, RValue* args, int32_t 
         Instance* inst = runner->instanceSnapshots[snapIdx];
         if (!inst->active) continue;
         if (notme && inst == self) continue;
+        if (useGrid && !inst->spatialGridDirty && arrlenu(inst->collisionCells) &&
+            !SpatialGrid_instanceOverlapsRange(inst, range)) continue;
 
         if (!Collision_rectOverlapsInstance(ctx->runner, inst, x1, y1, x2, y2)) continue;
 
