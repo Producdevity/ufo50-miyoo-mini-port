@@ -74,6 +74,9 @@ def main():
             global_vars = data['globalVariables']
             row.update(room=data['room'], selected=global_vars.get('selGame'),
                        current=global_vars.get('currGame'), game_id=global_vars.get('currGameID'))
+            titles = global_vars.get('mGameTitle')
+            if isinstance(titles, list) and len(titles) > index:
+                row['game_title'] = titles[index]
             row['final_in_game'] = data['room']['name'] not in ['rmLibrary', 'rmTitleScreens']
             runtime_log = (output / 'runtime.log').read_text()
             visited = re.findall(r'Room changed: .*? -> (\w+) \(room \d+\)', runtime_log)
