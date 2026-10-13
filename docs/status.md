@@ -46,9 +46,11 @@ Barbuta, and exits normally at frame 7800 with nonzero SDL audio output. Active
 framebuffer captures show the menu choices and filtered gameplay. Host runs
 produce distinct images for all three settings and identical offline audio
 counts. All 486 native pixel comparisons pass with Mini SDK SDL and SP SDL,
-covering 16/24/32-bit surfaces, borders and rotation. The initial scalar pass
-adds presentation overhead; optimization and fresh Mini performance proof
-remain pending.
+covering 16/24/32-bit surfaces, borders and rotation. The ARMv7 NEON pass preserves the same pixels. In the SP
+CPU benchmark, 32-bit scaling plus CRT at 640x360 falls from 10.949 to
+1.533 ms/image; scaling alone takes 1.050 ms. The RGB565 path also preserves
+the different SDL1 and SDL2 expansion rules. These are isolated display-pass
+timings on the SP, not physical Mini gameplay measurements.
 
 ## Community launch reports and v0.1.1, 2026-10-12
 

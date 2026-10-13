@@ -79,17 +79,26 @@ static inline int Ufo50_applyVideoCrt(Ufo50Crt* crt, SDL_Surface* screen,
     if (locked && SDL_LockSurface(screen) < 0) return -1;
     int canonical = bytes == 4 && screen->format->Rmask == 0xff0000 &&
         screen->format->Gmask == 0xff00 && screen->format->Bmask == 0xff;
+    int rgb565 = bytes == 2 && screen->format->Rmask == 0xf800 &&
+        screen->format->Gmask == 0x07e0 && screen->format->Bmask == 0x001f;
+    int linearExpansion = rgb565 && SDL_Linked_Version()->patch >= 50;
     for (int y = 0; y < image->h; y++) {
         Uint8* row = (Uint8*)screen->pixels + (image->y + y) * screen->pitch + image->x * bytes;
         int uprightY = rotate180 ? image->h - 1 - y : y;
+        if (canonical) {
+            Ufo50_crtRow32(crt, row, image->w, uprightY, rotate180);
+            continue;
+        }
+        if (rgb565) {
+            Ufo50_crtRow565(crt, row, image->w, uprightY, rotate180, linearExpansion);
+            continue;
+        }
         for (int x = 0; x < image->w; x++) {
             Uint32 pixel = 0;
             memcpy(&pixel, row + x * bytes, (size_t)bytes);
             int uprightX = rotate180 ? image->w - 1 - x : x;
             Uint32 shaded;
-            if (canonical) {
-                shaded = Ufo50_crtPixel(crt, pixel, uprightX, uprightY);
-            } else {
+            {
                 Uint8 r, g, b;
                 SDL_GetRGB(pixel, screen->format, &r, &g, &b);
                 Uint32 rgb = Ufo50_crtPixel(crt, (Uint32)r << 16 | (Uint32)g << 8 | b, uprightX, uprightY);

@@ -137,3 +137,8 @@ device. It compares 486 complete 16-bit, 24-bit and 32-bit images in both orient
 scaling path, including uneven borders, stale pixels from a previous frame and all three
 CRT settings.
 Performance logs report `present_ms` separately from game drawing.
+
+`tests/native/video_benchmark.c` measures the scaling and CRT CPU paths without
+a window or game files. Build it like the pixel check. Retain the SDL identity,
+CPU governor, clock, binary hash and before/after output when comparing runs.
+It does not measure display flips or game FPS.
