@@ -22,8 +22,10 @@ Logs: Saves/CurrentProfile/saves/UFO50/logs
 Back up your saves before updating.
 
 UFO 50 uses a 16:9 picture. Black bars on the Mini's 4:3 screen are normal.
-Early Mini playtests report roughly 20-30 FPS, depending on the game. Not
-all games and levels have been fully tested; a steady 30 FPS isn't verified.
+For scanlines, open Pause > Settings > Video Settings > CRT Effect and
+choose Soft or Hard. Off keeps the normal picture.
+
+The port targets 30 FPS. Heavier games can run slower.
 
 If startup stalls for 60 seconds, the launcher stops it and shows an error.
 For missing/incomplete files, recopy the whole Windows game folder. For any

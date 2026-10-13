@@ -1,8 +1,8 @@
 # UFO 50 for Miyoo Mini
 
 UFO 50 for Miyoo Mini and Mini Plus running Onion. You need your own Windows
-copy of the game. This is the first release; not every game and level has been
-fully tested.
+copy of the game. The download contains the port, so you add the game files
+yourself.
 
 ![Barbuta gameplay](docs/images/gameplay.gif)
 
@@ -11,10 +11,10 @@ fully tested.
 ## Huge thanks to Butterscotch
 
 **This port exists because of [Butterscotch](https://github.com/ButterscotchRunner/Butterscotch).**
-Huge shout-out to its creators and contributors for building the open-source
-GameMaker runner that does the hard work here. Thanks also to
+Huge shout-out to everyone who built and contributed to the runner. Their work
+makes UFO 50 playable here. Thanks also to
 [cobaltgit's Onion branch](https://github.com/cobaltgit/Butterscotch/tree/onion-v2),
-which gave this port its starting point. They deserve the credit for the runner.
+where this port started.
 
 ## Install
 
@@ -60,9 +60,10 @@ Use the game's menus to return to the library and quit. Saves are in
 `Saves/CurrentProfile/saves/UFO50`. Back them up before updating.
 
 UFO 50 uses a 16:9 picture. Black bars on the Mini's 4:3 screen are normal.
-The picture is capped at 30 FPS. Early Mini playtests report roughly
-[20–30 FPS](https://www.reddit.com/r/MiyooMini/comments/1x4cqb0/comment/pfj1gu7/);
-performance varies by game. A steady 30 FPS across the collection isn't verified.
+For scanlines, open **Pause → Settings → Video Settings → CRT Effect** and
+choose **Soft** or **Hard**. **Off** keeps the normal picture.
+
+The port targets 30 FPS. Heavier games can run slower.
 
 ## Problems and source
 
