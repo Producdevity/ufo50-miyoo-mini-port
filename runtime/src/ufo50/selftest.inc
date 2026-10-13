@@ -2,8 +2,10 @@
 #include "noop_audio_system.h"
 #include "noop_file_system.h"
 #include "ufo50/frame_clock.h"
+#include "ufo50/present_stats.h"
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 int Ufo50_runCompatibilityTests(void) {
+    CHECK_TEST(VM_runGlobalReadTests() == 0);
     CHECK_TEST(SWRenderer_runCacheTests() == 0);
     CHECK_TEST(SWRenderer_runSpriteTests() == 0);
     Ufo50FrameClock clock = {0};
@@ -17,6 +19,17 @@ int Ufo50_runCompatibilityTests(void) {
     CHECK_TEST(Ufo50FrameClock_deadline(1000, 1120, 100) == 1100);
     CHECK_TEST(Ufo50FrameClock_deadline(1100, 1150, 100) == 1200);
     CHECK_TEST(Ufo50FrameClock_deadline(1000, 2500, 100) == 2500);
+    Ufo50PresentStats intervals = {0};
+    Ufo50PresentStats_add(&intervals, 1000000, 33333333);
+    repeat(20, i) Ufo50PresentStats_add(&intervals, 1000000 + (i + 1) * 33333333ull, 33333333);
+    CHECK_TEST(intervals.count == 20 && intervals.longIntervals == 0);
+    CHECK_TEST(Ufo50PresentStats_p95(&intervals) == 33.5);
+    uint64_t previousFlip = intervals.previous;
+    Ufo50PresentStats_reset(&intervals);
+    CHECK_TEST(intervals.previous == previousFlip && intervals.count == 0 && Ufo50PresentStats_p95(&intervals) == 0);
+    Ufo50PresentStats_add(&intervals, previousFlip + 90000000, 33333333);
+    CHECK_TEST(intervals.count == 1 && intervals.longIntervals == 1 && intervals.maximum == 90000000);
+    CHECK_TEST(Ufo50PresentStats_p95(&intervals) == 90);
     uint32_t pixels[512];
     repeat(512, i) pixels[i] = ((i % 16) * 0x11111111u);
     SWTexture* paletted = swrCreateTexture((const uint8_t*)pixels, 32, 16);

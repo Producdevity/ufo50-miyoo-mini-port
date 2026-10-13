@@ -471,7 +471,8 @@ static uint32_t resolveLocalSlot(VMContext* ctx, int32_t varID) {
     // Pre-existing entries can still be past ctx->localVarCount if a nested call to the same code extended the slot map while the outer frame was suspended (the outer frame's localVarCount is captured at call entry and doesn't follow later growth).
     if (slot >= ctx->localVarCount) {
         RValue* resizedLocalVars = (RValue *)safeCalloc(slot + 1, sizeof(RValue));
-        memcpy(resizedLocalVars, ctx->localVars, sizeof(RValue) * ctx->localVarCount);
+        if (ctx->localVarCount)
+            memcpy(resizedLocalVars, ctx->localVars, sizeof(RValue) * ctx->localVarCount);
         free(ctx->localVars);
         ctx->localVars = resizedLocalVars;
         ctx->localVarCount = slot + 1;
@@ -3086,8 +3087,17 @@ static RValue executeLoop(VMContext* ctx) {
             }
             case OP_PUSHGLB: {
                 uint32_t varRef = resolveVarOperand(extraData);
-                // TODO: Re-add fast-path here!
-                RValue val = resolveVariableRead(ctx, INSTANCE_GLOBAL, varRef);
+                RValue val;
+                uint8_t varType = (uint8_t)((varRef >> 24) & 0xF8);
+                Variable* varDef = resolveVarDef(ctx, varRef);
+                if (varType == VARTYPE_NORMAL && varDef->varID >= 0 &&
+                    ctx->globalScopeInstance && tryFastVarRead(ctx, INSTANCE_GLOBAL, varDef, &val)) {
+#ifdef ENABLE_VM_TRACING
+                    VM_checkIfVariableShouldBeTracedAndLog(ctx, "global", nullptr, varDef->name, val, false, -1, -1, "");
+#endif
+                } else {
+                    val = resolveVariableRead(ctx, INSTANCE_GLOBAL, varRef);
+                }
                 stackPushTyped(ctx, val, GML_TYPE_VARIABLE);
                 break;
             }
@@ -3419,6 +3429,57 @@ static RValue executeLoop(VMContext* ctx) {
 }
 
 // Rewrites WAD 14 bytecode opcodes to use WAD 16 bytecode opcodes
+// Exercise actual PUSHGLB dispatch, including values that must use the fallback.
+int VM_runGlobalReadTests(void) {
+    Variable variables[] = {
+        {.name = "value", .varID = 901},
+        {.name = "missing", .varID = 902},
+        {.name = "pi", .varID = VARIABLE_BUILTIN, .builtinVarId = BUILTIN_VAR_PI}
+    };
+    DataWin data = {.gen8 = {.wadVersion = 17},
+        .vari = {.variables = variables, .variableCount = 3}};
+    uint32_t code[] = {(uint32_t)OP_PUSHGLB << 24 | GML_TYPE_VARIABLE << 16,
+        (uint32_t)VARTYPE_NORMAL << 24, (uint32_t)OP_RET << 24 | GML_TYPE_VARIABLE << 16};
+    Runner runner = {.dataWin = &data};
+    VMContext test = {.dataWin = &data, .runner = &runner, .bytecodeBase = (uint8_t*)code,
+        .codeEnd = sizeof(code), .currentCodeName = "synthetic-global-read",
+        .globalScopeInstance = Instance_create(0, STRUCT_OBJECT_INDEX, 0, 0)};
+    Instance_setSelfVar(test.globalScopeInstance, 901, RValue_makeReal(42));
+    RValue value = executeLoop(&test);
+    require(value.type == RVALUE_REAL && value.real == 42 && test.stack.top == 0);
+
+    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24 | 1;
+    value = executeLoop(&test);
+    require(value.type == RVALUE_UNDEFINED && test.stack.top == 0);
+    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24 | 2;
+    value = executeLoop(&test);
+    require(fabs(RValue_toReal(value) - 3.141592653589793) < 0.0000001);
+
+    Instance_setSelfVar(test.globalScopeInstance, 901, RValue_makeString("owned by slot"));
+    test.ip = 0; code[1] = (uint32_t)VARTYPE_NORMAL << 24;
+    value = executeLoop(&test);
+    require(value.type == RVALUE_STRING && !value.ownsReference && strcmp(value.string, "owned by slot") == 0);
+    RValue_free(&value); // A weak result must not release the slot's string.
+
+    GMLArray* array = GMLArray_create(17, 2);
+    *GMLArray_slot(array, 1) = RValue_makeReal(123);
+    RValue owned = RValue_makeArray(array);
+    Instance_setSelfVar(test.globalScopeInstance, 901, owned);
+    RValue_free(&owned);
+    test.ip = 0;
+    value = executeLoop(&test);
+    require(value.type == RVALUE_ARRAY && value.array == array && !value.ownsReference && array->refCount == 1);
+    RValue_free(&value);
+
+    test.ip = 0; code[1] = (uint32_t)VARTYPE_ARRAY << 24;
+    stackPush(&test, RValue_makeInt32(INSTANCE_GLOBAL));
+    stackPush(&test, RValue_makeInt32(1));
+    value = executeLoop(&test);
+    require(RValue_toReal(value) == 123 && test.stack.top == 0 && array->refCount == 1);
+    Instance_free(test.globalScopeInstance);
+    return 0;
+}
+
 static void rewriteBytecode14To16(VMContext* ctx) {
     DataWin* dw = ctx->dataWin;
     uint8_t* buf = dw->bytecodeBuffer;
@@ -3802,7 +3863,7 @@ RValue VM_executeCode(VMContext* ctx, int32_t codeIndex) {
     setCurrentCodeLocalsSlotMap(ctx);
 
     uint32_t localsCount = computeLocalsCount(ctx, code);
-    RValue* localVars = (RValue *)safeCalloc(localsCount, sizeof(RValue));
+    RValue* localVars = localsCount ? (RValue *)safeCalloc(localsCount, sizeof(RValue)) : nullptr;
     ctx->localVars = localVars;
     ctx->localVarCount = localsCount;
 
@@ -3874,7 +3935,7 @@ RValue VM_callCodeIndex(VMContext* ctx, int32_t codeIndex, RValue* args, int32_t
     setCurrentCodeLocalsSlotMap(ctx);
 
     uint32_t localsCount = computeLocalsCount(ctx, code);
-    RValue* localVars = (RValue *)safeCalloc(localsCount, sizeof(RValue));
+    RValue* localVars = localsCount ? (RValue *)safeCalloc(localsCount, sizeof(RValue)) : nullptr;
     ctx->localVars = localVars;
     ctx->localVarCount = localsCount;
 

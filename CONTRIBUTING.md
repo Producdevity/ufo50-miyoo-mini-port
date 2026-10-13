@@ -142,3 +142,13 @@ Performance logs report `present_ms` separately from game drawing.
 a window or game files. Build it like the pixel check. Retain the SDL identity,
 CPU governor, clock, binary hash and before/after output when comparing runs.
 It does not measure display flips or game FPS.
+
+`Perf:` lines include presentation interval p95 and maximum, plus intervals
+longer than 1.5 times the scheduled display period. The p95 is the upper bound
+of a half-millisecond bucket. Exclude loading, menus and state export from a
+gameplay window; keep the original lines with the report.
+
+For repeated CPU comparisons, run `scripts/benchmark-runtime.py BASELINE
+CANDIDATE data.win OUTPUT` with isolated evidence paths. It alternates ordering
+and drains the real mixer at simulated time. These uncapped workloads include
+startup and cannot establish device FPS or speaker output.

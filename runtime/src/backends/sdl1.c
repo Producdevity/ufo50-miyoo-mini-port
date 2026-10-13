@@ -334,6 +334,9 @@ bool platformInit(int32_t reqW, int32_t reqH, const char *title, bool headless) 
         logInfo("Video: native software framebuffer %dx%d, display %dx%d, rotate180=%d\n",
             fbWidth, fbHeight, scr ? scr->w : 0, scr ? scr->h : 0, g_rotateSoftware);
     }
+    if (scr) logInfo("Video: pixel format bits=%u R=%08x G=%08x B=%08x pitch=%u\n",
+        scr->format->BitsPerPixel, scr->format->Rmask, scr->format->Gmask,
+        scr->format->Bmask, scr->pitch);
     if (!headless) SDL_WM_SetCaption(title, NULL);
 
     SDL_EnableKeyRepeat(0, 0);

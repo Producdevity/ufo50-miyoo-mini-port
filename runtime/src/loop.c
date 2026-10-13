@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "loop.h"
 #include "ufo50/frame_clock.h"
+#include "ufo50/present_stats.h"
 #include "ufo50/game_files.h"
 #include "ufo50/display_options.h"
 
@@ -993,6 +994,7 @@ int loop(CommandLineArgs args, const char *argv0) {
         const char* perfEnv = getenv("UFO50_PERF_LOG");
         bool perfEnabled = perfEnv && strcmp(perfEnv, "0") != 0;
         bool startupPresented = false;
+        Ufo50PresentStats presentStats = {0};
         uint64_t perfStart = nowNanos(), perfSteps = 0, perfDraws = 0, perfPresents = 0;
         uint64_t perfWork = 0, perfDrawWork = 0, perfPresentWork = 0;
         while (true) {
@@ -1336,7 +1338,13 @@ int loop(CommandLineArgs args, const char *argv0) {
                             logInfo("Startup: first frame presented\n");
                             startupPresented = true;
                         }
-                        perfPresentWork += nowNanos() - presentStarted;
+                        uint64_t presented = nowNanos();
+                        perfPresentWork += presented - presentStarted;
+                        if (perfEnabled) {
+                            double hz = runner->gameSpeedOverride > 0 ? runner->gameSpeedOverride : runner->currentRoom->speed;
+                            if (renderLimit > 0 && renderLimit < hz) hz = renderLimit;
+                            Ufo50PresentStats_add(&presentStats, presented, hz > 0 ? (uint64_t)(1000000000.0 / hz) : 0);
+                        }
                         perfPresents++;
                     }
                 }
@@ -1380,12 +1388,15 @@ int loop(CommandLineArgs args, const char *argv0) {
             lastFrameTime = nowNanos();
             if (perfEnabled && lastFrameTime - perfStart >= 1000000000ull) {
                 double seconds = (lastFrameTime - perfStart) / 1000000000.0;
-                logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f present_ms=%.3f\n",
+                logInfo("Perf: frame=%d seconds=%.6f steps=%llu draws=%llu presents=%llu work_ms=%.3f draw_ms=%.3f present_ms=%.3f interval_p95_ms=%.3f interval_max_ms=%.3f long_intervals=%llu\n",
                     runner->frameCount, seconds, (unsigned long long)perfSteps,
                     (unsigned long long)perfDraws, (unsigned long long)perfPresents,
                     perfSteps ? perfWork / 1000000.0 / perfSteps : 0,
                     perfDraws ? perfDrawWork / 1000000.0 / perfDraws : 0,
-                    perfPresents ? perfPresentWork / 1000000.0 / perfPresents : 0);
+                    perfPresents ? perfPresentWork / 1000000.0 / perfPresents : 0,
+                    Ufo50PresentStats_p95(&presentStats), presentStats.maximum / 1000000.0,
+                    (unsigned long long)presentStats.longIntervals);
+                Ufo50PresentStats_reset(&presentStats);
                 perfStart = lastFrameTime; perfSteps = perfDraws = perfPresents = 0;
                 perfWork = perfDrawWork = perfPresentWork = 0;
             }
