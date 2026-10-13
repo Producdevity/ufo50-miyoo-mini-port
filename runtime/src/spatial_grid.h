@@ -69,13 +69,23 @@ static inline SpatialGridRange SpatialGrid_computeCellRange(SpatialGrid* grid, G
 }
 
 static inline bool SpatialGrid_instanceOverlapsRange(Instance* instance, SpatialGridRange range) {
-    repeat(arrlen(instance->collisionCells), i) {
-        uint16_t cellX = SpatialGrid_unpackGridX(instance->collisionCells[i]);
-        uint16_t cellY = SpatialGrid_unpackGridY(instance->collisionCells[i]);
-        if (cellX >= range.minGridX && range.maxGridX >= cellX && cellY >= range.minGridY && range.maxGridY >= cellY)
-            return true;
+    size_t count = arrlenu(instance->collisionCells);
+    if (!count) return false;
+    if (count == 1) {
+        uint32_t cell = instance->collisionCells[0];
+        uint16_t x = SpatialGrid_unpackGridX(cell), y = SpatialGrid_unpackGridY(cell);
+        return x >= range.minGridX && x <= range.maxGridX &&
+               y >= range.minGridY && y <= range.maxGridY;
     }
-    return false;
+    if (range.minGridX > range.maxGridX || range.minGridY > range.maxGridY) return false;
+    // syncGrid fills a rectangle in x-major order. Its endpoints give the
+    // occupied bounds without scanning every cell of a large collision mask.
+    uint32_t first = instance->collisionCells[0];
+    uint32_t last = instance->collisionCells[count - 1];
+    return SpatialGrid_unpackGridX(first) <= range.maxGridX &&
+           SpatialGrid_unpackGridX(last) >= range.minGridX &&
+           SpatialGrid_unpackGridY(first) <= range.maxGridY &&
+           SpatialGrid_unpackGridY(last) >= range.minGridY;
 }
 
 SpatialGrid* SpatialGrid_create(uint32_t gridWidth, uint32_t gridHeight);

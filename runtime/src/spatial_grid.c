@@ -81,6 +81,7 @@ void SpatialGrid_syncGrid(Runner* runner, SpatialGrid* grid) {
 
         SpatialGridRange range = SpatialGrid_computeCellRange(grid, bbox.left, bbox.top, bbox.right, bbox.bottom);
 
+        // The range-overlap predicate relies on this complete x-major rectangle.
         for (int32_t gx = range.minGridX; range.maxGridX >= gx; gx++) {
             for (int32_t gy = range.minGridY; range.maxGridY >= gy; gy++) {
                 arrput(grid->grid[SpatialGrid_cellIndex(grid, gx, gy)], instance);

@@ -4,7 +4,9 @@
 #include "ufo50/frame_clock.h"
 #include "ufo50/present_stats.h"
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
+#include "ufo50/spatial_selftest.inc"
 int Ufo50_runCompatibilityTests(void) {
+    CHECK_TEST(Ufo50_runSpatialRangeTests() == 0);
     CHECK_TEST(VM_runGlobalReadTests() == 0);
     CHECK_TEST(VM_runLocalStorageTests() == 0);
     CHECK_TEST(SWRenderer_runCacheTests() == 0);
