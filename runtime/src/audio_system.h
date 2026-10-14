@@ -44,6 +44,8 @@ typedef struct {
     bool (*groupIsLoaded)(AudioSystem* audio, int32_t groupIndex);
     int32_t (*createStream)(AudioSystem* audio, const char* filename);
     bool (*destroyStream)(AudioSystem* audio, int32_t streamIndex);
+    // Optional: map a retained voice handle to its original SOND resource, or -1.
+    int32_t (*getSoundAsset)(AudioSystem* audio, int32_t instanceId);
 } AudioSystemVtable;
 
 // ===[ AudioSystem Base Struct ]===

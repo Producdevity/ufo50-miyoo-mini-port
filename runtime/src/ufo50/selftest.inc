@@ -13,8 +13,11 @@ static int32_t audioCallTestPlay(AudioSystem* audio, int32_t sound, int32_t prio
     test->gain = gain; test->calls++;
     return 100123;
 }
+static int32_t audioCallTestAsset(MAYBE_UNUSED AudioSystem* audio, int32_t voice) {
+    return voice == 100123 ? 7 : -1;
+}
 static void Ufo50_testAudioInitialGain(void) {
-    AudioSystemVtable vtable = {.playSound = audioCallTestPlay};
+    AudioSystemVtable vtable = {.playSound = audioCallTestPlay, .getSoundAsset = audioCallTestAsset};
     Ufo50AudioCallTest audio = {.base = {.vtable = &vtable}};
     Runner runner = {.audioSystem = &audio.base};
     VMContext ctx = {.runner = &runner};
@@ -26,6 +29,18 @@ static void Ufo50_testAudioInitialGain(void) {
     args[3] = RValue_makeUndefined();
     CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == 100123 && audio.gain == 1);
     CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 0)) == -1 && audio.calls == 4);
+    Sound sounds[8] = {{0}}; sounds[7].name = "cash-count";
+    DataWin data = {.sond = {.count = 8, .sounds = sounds}};
+    ctx.dataWin = &data;
+    arrput(audio.base.audioGroups, &data);
+    RValue voice = RValue_makeReal(100123);
+    RValue name = builtin_audio_get_name(&ctx, &voice, 1);
+    CHECK_TEST(name.type == RVALUE_STRING && strcmp(name.string, "cash-count") == 0);
+    RValue_free(&name);
+    voice = RValue_makeReal(100124);
+    name = builtin_audio_get_name(&ctx, &voice, 1);
+    CHECK_TEST(name.type == RVALUE_STRING && strcmp(name.string, "<undefined>") == 0);
+    RValue_free(&name); arrfree(audio.base.audioGroups);
     args[0] = RValue_makeUndefined();
     CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == -1 && audio.calls == 4);
 }

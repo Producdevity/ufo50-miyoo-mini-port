@@ -32,7 +32,7 @@ int MaAudioSystem_runTests(const char* fixturePath) {
     maStopSound(audio, scaled);
     sounds[0].volume = 1;
     int32_t sound=maPlaySound(audio, 0, 0, true, 1.0f);
-    require(sound>=SOUND_INSTANCE_ID_BASE);
+    require(sound>=SOUND_INSTANCE_ID_BASE && maGetSoundAsset(audio, sound) == 0);
     float pcm[1024]; ma_uint64 read=0;
     require(ma_engine_read_pcm_frames(&ma->engine, pcm, 512, &read)==MA_SUCCESS && read==512);
     float energy=0; repeat(1024, i) energy+=pcm[i]*pcm[i];
@@ -42,8 +42,10 @@ int MaAudioSystem_runTests(const char* fixturePath) {
     /* Old effect handles must not control music that reuses their mixer slot. */
     int32_t retired = sound;
     maStopSound(audio, retired);
+    require(maGetSoundAsset(audio, retired) == -1);
     sound = maPlaySound(audio, 0, 100, true, 1.0f);
     require(sound != retired && maIsPlaying(audio, sound) && !maIsPlaying(audio, retired));
+    require(maGetSoundAsset(audio, sound) == 0 && maGetSoundAsset(audio, retired) == -1);
     maSetSoundGain(audio, retired, 0, 30);
     maSetSoundPitch(audio, retired, 2);
     maPauseSound(audio, retired);

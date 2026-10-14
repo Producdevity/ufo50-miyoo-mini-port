@@ -68,6 +68,18 @@ cmake --build artifacts/asan -j4
 ASAN_OPTIONS=detect_leaks=0 artifacts/asan/butterscotch --compat-selftest
 ```
 
+## Overbold payout audio
+
+`tests/overbold-payout-inputs.json` wins the first fight with seed 1234 and
+stays on the prize screen. At 9,000 steps the prize display is 100. The
+money-count loop should fade out when counting finishes, without opening the
+pause menu. The sound-name and stale-handle tests cover the lookup used by
+the game's `mute` script.
+
+```sh
+python3 scripts/probe.py artifacts/host/butterscotch .local/gamefiles/data.win artifacts/evidence/overbold-payout --frames 9000 --timeout 30 --headless --offline-audio --render-fps 30 --inputs tests/overbold-payout-inputs.json
+```
+
 ## Library music layers
 
 `tests/library-music-inputs.json` opens the game library and leaves it idle.

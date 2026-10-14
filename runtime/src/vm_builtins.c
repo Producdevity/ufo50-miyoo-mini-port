@@ -6664,23 +6664,20 @@ static RValue builtin_sound_play(VMContext* ctx, RValue* args, MAYBE_UNUSED int3
     return RValue_makeReal((GMLReal) instanceId);
 }
 
-static RValue builtin_audio_get_name(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
+static RValue builtin_audio_get_name(VMContext* ctx, RValue* args, int32_t argCount) {
     AudioSystem* audio = getAudioSystem(ctx);
-    if (audio == nullptr || audio->vtable == nullptr || 1 > argCount) return RValue_makeString("<undefined>");
-    if (args[0].type == RVALUE_UNDEFINED) return RValue_makeString("<undefined>");
+    if (audio == nullptr || argCount < 1 || args[0].type == RVALUE_UNDEFINED)
+        return RValue_makeString("<undefined>");
 
+    DataWin* data = ctx->dataWin;
     int32_t soundIndex = RValue_toInt32(args[0]);
-    if (0 > soundIndex) return RValue_makeString("<undefined>");
-
-    repeat(arrlen(audio->audioGroups), i) {
-        DataWin* dw = audio->audioGroups[i];
-        if (!dw || dw->sond.count <= (uint32_t) soundIndex) {
-            continue;
-        } else {
-            return RValue_makeString(dw->sond.sounds[soundIndex].name);
-        }
-    }
-    return RValue_makeString("<undefined>");
+    if (soundIndex < 0) return RValue_makeString("<undefined>");
+    if ((uint32_t)soundIndex >= data->sond.count && audio->vtable->getSoundAsset != nullptr)
+        soundIndex = audio->vtable->getSoundAsset(audio, soundIndex);
+    if (soundIndex < 0 || (uint32_t)soundIndex >= data->sond.count ||
+        data->sond.sounds[soundIndex].name == nullptr)
+        return RValue_makeString("<undefined>");
+    return RValue_makeString(data->sond.sounds[soundIndex].name);
 }
 
 // same as builtin_sound_play with loop enabled

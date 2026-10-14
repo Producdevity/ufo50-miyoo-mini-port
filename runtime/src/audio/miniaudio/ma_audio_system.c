@@ -76,6 +76,12 @@ static SoundInstance* findInstanceById(MaAudioSystem* ma, int32_t instanceId) {
     return nullptr;
 }
 
+static int32_t maGetSoundAsset(AudioSystem* audio, int32_t instanceId) {
+    SoundInstance* instance = findInstanceById((MaAudioSystem*)audio, instanceId);
+    if (instance == nullptr || isAudioStreamId(instance->soundIndex)) return -1;
+    return instance->soundIndex;
+}
+
 // Helper: resolve external audio file path from Sound entry
 static char* resolveExternalPath(MaAudioSystem* ma, Sound* sound) {
     const char* file = sound->file;
@@ -927,6 +933,7 @@ static void maSetupVtable(void) {
     maAudioSystemVtable.destroy = maDestroy;
     maAudioSystemVtable.update = maUpdate;
     maAudioSystemVtable.playSound = maPlaySound;
+    maAudioSystemVtable.getSoundAsset = maGetSoundAsset;
     maAudioSystemVtable.stopSound = maStopSound;
     maAudioSystemVtable.stopAll = maStopAll;
     maAudioSystemVtable.isPlaying = maIsPlaying;
