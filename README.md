@@ -19,8 +19,8 @@ where this port started.
 ## Install
 
 1. Enable **Ports Collection** in Onion's Package Manager.
-2. Download `ufo50-miyoo-mini-v0.1.6.zip` from
-   [Releases](https://github.com/Producdevity/ufo50-miyoo-mini-port/releases/tag/v0.1.6)
+2. Download `ufo50-miyoo-mini-v0.1.7.zip` from
+   [Releases](https://github.com/Producdevity/ufo50-miyoo-mini-port/releases/tag/v0.1.7)
    and merge its `Roms` folder into the root of your SD card. Keep your existing
    `Games` and `Shortcuts` folders; overwrite only the UFO50 port files.
 3. In Steam, right-click UFO 50 and choose **Manage → Browse local files**.
