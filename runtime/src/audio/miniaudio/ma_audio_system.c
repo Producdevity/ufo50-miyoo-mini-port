@@ -59,20 +59,21 @@ static SoundInstance* findFreeSlot(MaAudioSystem* ma) {
     return best;
 }
 
+static bool isAudioStreamId(int32_t id) {
+    return id >= AUDIO_STREAM_INDEX_BASE && id < AUDIO_STREAM_INDEX_BASE + MAX_AUDIO_STREAMS;
+}
+
 static bool isValidSoundInstanceId(int32_t instanceId) {
-    return AUDIO_STREAM_INDEX_BASE > instanceId && instanceId >= SOUND_INSTANCE_ID_BASE;
+    return instanceId >= SOUND_INSTANCE_ID_BASE && !isAudioStreamId(instanceId);
 }
 
 static SoundInstance* findInstanceById(MaAudioSystem* ma, int32_t instanceId) {
-    int32_t slotIndex = instanceId - SOUND_INSTANCE_ID_BASE;
-    if (0 > slotIndex || slotIndex >= MAX_SOUND_INSTANCES)
-        return nullptr;
-
-    SoundInstance* inst = &ma->instances[slotIndex];
-    if (!inst->active || inst->instanceId != instanceId)
-        return nullptr;
-
-    return inst;
+    if (!isValidSoundInstanceId(instanceId)) return nullptr;
+    repeat(MAX_SOUND_INSTANCES, i) {
+        SoundInstance* inst = &ma->instances[i];
+        if (inst->active && inst->instanceId == instanceId) return inst;
+    }
+    return nullptr;
 }
 
 // Helper: resolve external audio file path from Sound entry
@@ -101,7 +102,7 @@ void MaAudioSystem_resetState(MaAudioSystem* ma) {
     repeat(arrlen(ma->groupGains), i) {
         ma->groupGains[i] = (AudioGroupGain){.current=1, .target=1, .start=1};
     }
-    ma->nextInstanceCounter = 0;
+    ma->nextInstanceCounter = SOUND_INSTANCE_ID_BASE;
 
     repeat(MAX_LISTENERS, i) {
         ma_sound_group_init(&ma->engine, 0, NULL, &ma->listenerGroups[i]);
@@ -239,7 +240,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
     // Check if this is a stream index (created by audio_create_stream)
-    bool isStream = (soundIndex >= AUDIO_STREAM_INDEX_BASE);
+    bool isStream = isAudioStreamId(soundIndex);
     Sound* sound = nullptr;
     char* streamPath = nullptr;
     float streamPitch = 1.0f;
@@ -264,13 +265,21 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
         sound = &dw->sond.sounds[soundIndex];
     }
 
+    // A retired effect handle can remain in GML after its mixer slot is reused.
+    // Never give that handle to another voice, including after the stream range.
+    int32_t instanceId = ma->nextInstanceCounter;
+    if (isAudioStreamId(instanceId)) instanceId = AUDIO_STREAM_INDEX_BASE + MAX_AUDIO_STREAMS;
+    if (instanceId == INT32_MAX) {
+        logWarn("Audio: Sound instance handles exhausted\n");
+        return -1;
+    }
+
     SoundInstance* slot = findFreeSlot(ma);
     if (slot == nullptr) {
         logWarn("Audio: No free sound slots for sound %d\n", soundIndex);
         return -1;
     }
 
-    int32_t slotIndex = (int32_t) (slot - ma->instances);
     ma_result result;
 
     if (isStream) {
@@ -348,7 +357,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     // Set up instance tracking
     slot->active = true;
     slot->soundIndex = soundIndex;
-    slot->instanceId = SOUND_INSTANCE_ID_BASE + slotIndex;
+    slot->instanceId = instanceId;
     slot->currentGain = volume;
     slot->targetGain = volume;
     slot->fadeTimeRemaining = 0.0f;
@@ -356,8 +365,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     slot->startGain = volume;
     slot->priority = priority;
 
-    // Track unique IDs for disambiguation
-    ma->nextInstanceCounter++;
+    ma->nextInstanceCounter = instanceId + 1;
 
     ma_sound_start(&slot->maSound);
 
@@ -499,7 +507,7 @@ static void maResume(AudioSystem* audio) {
 static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float gain, uint32_t timeMs) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
-    if (soundOrInstance >= AUDIO_STREAM_INDEX_BASE) {
+    if (isAudioStreamId(soundOrInstance)) {
         int32_t streamSlot = soundOrInstance - AUDIO_STREAM_INDEX_BASE;
 
         AudioStreamEntry* stream = &ma->streams[streamSlot];
@@ -557,7 +565,7 @@ static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float ga
 static float maGetSoundGain(AudioSystem* audio, int32_t soundOrInstance) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
-    if (soundOrInstance >= AUDIO_STREAM_INDEX_BASE) {
+    if (isAudioStreamId(soundOrInstance)) {
         int32_t streamSlot = soundOrInstance - AUDIO_STREAM_INDEX_BASE;
 
         AudioStreamEntry* stream = &ma->streams[streamSlot];
@@ -586,7 +594,7 @@ static float maGetSoundGain(AudioSystem* audio, int32_t soundOrInstance) {
 static void maSetSoundPitch(AudioSystem* audio, int32_t soundOrInstance, float pitch) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
-    if (soundOrInstance >= AUDIO_STREAM_INDEX_BASE) {
+    if (isAudioStreamId(soundOrInstance)) {
         int32_t streamSlot = soundOrInstance - AUDIO_STREAM_INDEX_BASE;
 
         AudioStreamEntry* stream = &ma->streams[streamSlot];
@@ -616,7 +624,7 @@ static void maSetSoundPitch(AudioSystem* audio, int32_t soundOrInstance, float p
 static float maGetSoundPitch(AudioSystem* audio, int32_t soundOrInstance) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
-    if (soundOrInstance >= AUDIO_STREAM_INDEX_BASE) {
+    if (isAudioStreamId(soundOrInstance)) {
         int32_t streamSlot = soundOrInstance - AUDIO_STREAM_INDEX_BASE;
 
         AudioStreamEntry* stream = &ma->streams[streamSlot];

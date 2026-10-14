@@ -1,0 +1,366 @@
+{
+  "200": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "208": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "400": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "408": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "600": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "608": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "800": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "808": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "1000": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "1008": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "1100": {
+    "keysPressed": [
+      39
+    ],
+    "keysReleased": []
+  },
+  "1108": {
+    "keysPressed": [],
+    "keysReleased": [
+      39
+    ]
+  },
+  "1120": {
+    "keysPressed": [
+      39
+    ],
+    "keysReleased": []
+  },
+  "1128": {
+    "keysPressed": [],
+    "keysReleased": [
+      39
+    ]
+  },
+  "1140": {
+    "keysPressed": [
+      39
+    ],
+    "keysReleased": []
+  },
+  "1148": {
+    "keysPressed": [],
+    "keysReleased": [
+      39
+    ]
+  },
+  "1160": {
+    "keysPressed": [
+      39
+    ],
+    "keysReleased": []
+  },
+  "1168": {
+    "keysPressed": [],
+    "keysReleased": [
+      39
+    ]
+  },
+  "1180": {
+    "keysPressed": [
+      40
+    ],
+    "keysReleased": []
+  },
+  "1188": {
+    "keysPressed": [],
+    "keysReleased": [
+      40
+    ]
+  },
+  "1200": {
+    "keysPressed": [
+      40
+    ],
+    "keysReleased": []
+  },
+  "1208": {
+    "keysPressed": [],
+    "keysReleased": [
+      40
+    ]
+  },
+  "1600": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "1608": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "1800": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "1808": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "2000": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "2008": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "2400": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "2408": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "2600": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "2608": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "2800": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "2808": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "3000": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "3008": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "3200": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "3208": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "3400": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "3408": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "3600": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "3608": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "3800": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "3808": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "4000": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "4008": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "4400": {
+    "keysPressed": [
+      39
+    ],
+    "keysReleased": []
+  },
+  "4420": {
+    "keysPressed": [],
+    "keysReleased": [
+      39
+    ]
+  },
+  "4500": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "4508": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "6100": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "6108": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "6300": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "6308": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "7500": {
+    "keysPressed": [
+      88
+    ],
+    "keysReleased": []
+  },
+  "7508": {
+    "keysPressed": [],
+    "keysReleased": [
+      88
+    ]
+  },
+  "7900": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "7908": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "8300": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "8308": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "11000": {
+    "keysPressed": [],
+    "keysReleased": []
+  }
+}

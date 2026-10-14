@@ -68,6 +68,21 @@ cmake --build artifacts/asan -j4
 ASAN_OPTIONS=detect_leaks=0 artifacts/asan/butterscotch --compat-selftest
 ```
 
+## Party House purchase audio
+
+This replay buys two Old Friends and waits in the shop long enough for the
+purchase effects to finish. The shop music should keep playing. Use fresh saves
+and seed 1234 (the probe default):
+
+```sh
+python3 scripts/probe.py artifacts/host/butterscotch .local/gamefiles/data.win artifacts/evidence/party-purchase --frames 11000 --timeout 120 --headless --offline-audio --render-fps 30 --inputs tests/party-house-purchase-inputs.json
+```
+
+The final state should be Party House (menu index 25, internal ID 36), in
+`rm36_PartyKing`, with the selected Old Friend's supply at 2. The offline mixer
+check does not test speaker output. On a device, record the sink output after
+both purchases and confirm music continues after the effects end.
+
 ## SP diagnostics and packaging
 
 Use the normal Ports launcher for behavioral device proof. A file
