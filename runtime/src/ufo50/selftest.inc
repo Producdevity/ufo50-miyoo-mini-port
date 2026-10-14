@@ -84,6 +84,11 @@ int Ufo50_runCompatibilityTests(void) {
     VMContext* ctx = VM_create(&data);
     CHECK_TEST(VM_runIntegerTests(ctx) == 0);
     Renderer* renderer = SWRenderer_create();
+    renderer->vtable->gpuSetFog(renderer, true, 0x204080);
+    CHECK_TEST(((SWRenderer*)renderer)->fogEnabled &&
+        ((SWRenderer*)renderer)->fogColor == swrConvertPixel(0x204080));
+    renderer->vtable->gpuSetFog(renderer, false, 0);
+    CHECK_TEST(!((SWRenderer*)renderer)->fogEnabled);
     FileSystem* fs = NoopFileSystem_create();
     AudioSystem* audio = (AudioSystem*) NoopAudioSystem_create();
     Runner* runner = Runner_create(&data, ctx, renderer, fs, audio, 1234);

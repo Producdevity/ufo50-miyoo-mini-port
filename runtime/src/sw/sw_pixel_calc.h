@@ -59,6 +59,13 @@ FORCE_INLINE uintpixel_t tint(uintpixel_t tintColor, uintpixel_t color)
 #endif
 }
 
+// UFO 50 uses fully saturated fog to draw solid silhouettes, preserving the mask.
+FORCE_INLINE uintpixel_t swrFogPixel(SWRenderer* swr, uintpixel_t pixel)
+{
+    if (!swr->fogEnabled) return pixel;
+    return (pixel & TRANSPARENT_MASK) | (swr->fogColor & ~TRANSPARENT_MASK);
+}
+
 // Performs alpha blending on a pixel, with another pixel.
 //
 // NOTE: alpha is between 0 and 256, NOT between 0 and 255!

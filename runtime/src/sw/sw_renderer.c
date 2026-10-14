@@ -718,8 +718,9 @@ static bool SWRenderer_gpuGetBlendEnable(Renderer* renderer)
 
 static void SWRenderer_gpuSetFog(Renderer* renderer, bool enable, uint32_t color)
 {
-    UNIMP();
-    (void)renderer; (void)enable; (void)color;
+    SWRenderer* swr = (SWRenderer*)renderer;
+    swr->fogEnabled = enable;
+    swr->fogColor = swrConvertPixel(color);
 }
 
 static int32_t SWRenderer_createSurface(Renderer* renderer, int32_t width, int32_t height)

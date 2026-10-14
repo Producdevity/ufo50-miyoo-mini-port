@@ -67,6 +67,8 @@ typedef struct
     Renderer base;
     size_t textureCacheBudget;
     bool spriteFastPath;
+    bool fogEnabled;
+    uintpixel_t fogColor;
     bool discardMainFrame;
     Ufo50Crt outputCrt;
     

@@ -25,12 +25,14 @@ FORCE_INLINE void swrPlotPixel(Renderer* renderer, int x, int y, uintpixel_t col
     if (x < swr->portX || y < swr->portY) return;
     if (x >= swr->maxX || y >= swr->maxY) return;
     
-    alphaBlend(&swr->fb[y * swr->fbPitch + x], color, srcalpha, dstalpha);
+    alphaBlend(&swr->fb[y * swr->fbPitch + x], swrFogPixel(swr, color), srcalpha, dstalpha);
 }
 
 static void swrDrawHLineInt(Renderer* renderer, int dx, int dy, int dw, uintpixel_t color, UNUSED uintpixel_t color2, int alpha)
 {
     SWRenderer *swr = (SWRenderer*) renderer;
+    color = swrFogPixel(swr, color);
+    color2 = swrFogPixel(swr, color2);
     
     if (dy < swr->portY) return;
     if (dy >= swr->maxY) return;
@@ -85,6 +87,8 @@ static void swrDrawHLineInt(Renderer* renderer, int dx, int dy, int dw, uintpixe
 static void swrDrawVLineInt(Renderer* renderer, int dx, int dy, int dh, uintpixel_t color, UNUSED uintpixel_t color2, int alpha)
 {
     SWRenderer *swr = (SWRenderer*) renderer;
+    color = swrFogPixel(swr, color);
+    color2 = swrFogPixel(swr, color2);
     
     if (dx < swr->portX) return;
     if (dx >= swr->maxX) return;
@@ -307,7 +311,7 @@ static void swrDrawSpriteInternal(
 
     // Native-resolution tiles need no scaling, tint, or blending.
 #if PIXEL_SIZE == 32
-    if (swr->spriteFastPath && sourceInside && sw == odw && sh == odh && alpha == 256 &&
+    if (swr->spriteFastPath && !swr->fogEnabled && sourceInside && sw == odw && sh == odh && alpha == 256 &&
         swr->blendMode == bm_normal && (tintColor & 0xFFFFFF) == 0xFFFFFF) {
         for (int y = 0, ys = iys; y < dh; y++, ys += oys) {
             uintpixel_t* dst = &swr->fb[(dy + y) * swr->fbPitch + dx];
@@ -351,7 +355,7 @@ static void swrDrawSpriteInternal(
             int tx = sx + (int)(xs2 >> fp_prec);
             if (!sourceInside && (tx < 0 || tx >= texture->width)) continue;
             uintpixel_t pixel = swrTexturePixel(texture, (size_t)ty * texture->width + tx);
-            if (opaque(pixel)) alphaBlend(&dst[x], tint(tintColor, pixel), srcalpha, invalpha);
+            if (opaque(pixel)) alphaBlend(&dst[x], swrFogPixel(swr, tint(tintColor, pixel)), srcalpha, invalpha);
         }
     }
 }
@@ -468,7 +472,7 @@ static void swrDrawSpriteRotatedInternal(
             uintpixel_t src = swrTexturePixel(texture, (size_t)ty * texture->width + tx);
             
             if (opaque(src))
-                alphaBlend(&dstline[cx], tint(tintColor, src), srcalpha, invalpha);
+                alphaBlend(&dstline[cx], swrFogPixel(swr, tint(tintColor, src)), srcalpha, invalpha);
         }
     }
 }
@@ -478,6 +482,7 @@ static void swrDrawTriangleInternal(SWRenderer* swr, int xup, int yup, int xleft
     // TODO: update this
     (void) color2;
     (void) color3;
+    color1 = swrFogPixel(swr, color1);
     
     int srcalpha = swrCalcSrcAlpha(swr, alpha);
     int invalpha = swrCalcDstAlpha(swr, alpha);
@@ -1065,7 +1070,7 @@ int SWRenderer_runSpriteTests(void) {
     uintpixel_t expected[20 * 16], actual[20 * 16], fallback[20 * 16];
     SWRenderer swr = {.width=20, .height=16, .fbPitch=20,
         .portW=20, .portH=16, .maxX=20, .maxY=16, .blendMode=bm_normal};
-    repeat(5, storage) repeat(4, flip) repeat(4, clip) repeat(3, style) repeat(3, scale) {
+    repeat(5, storage) repeat(4, flip) repeat(4, clip) repeat(4, style) repeat(3, scale) {
         repeat(320, i) expected[i] = actual[i] = fallback[i] = 0xFF123456;
         int extent = scale == 0 ? 8 : scale == 1 ? 16 : 4;
         int dw = flip & 1 ? -extent : extent, dh = flip & 2 ? -extent : extent;
@@ -1074,6 +1079,8 @@ int SWRenderer_runSpriteTests(void) {
         uintpixel_t color = style == 1 ? 0xFF402080 : 0xFFFFFFFF;
         int alpha = style == 2 ? 128 : 256;
         SWTexture* texture = textures[storage];
+        swr.fogEnabled = style == 3;
+        swr.fogColor = swrConvertPixel(0x204080);
         swr.fb = fallback; swr.spriteFastPath = false;
         swrDrawSpriteInternal((Renderer*)&swr, x, y, dw, dh, texture, 0, 0, 8, 8, color, alpha);
         swr.fb = actual; swr.spriteFastPath = true;
@@ -1086,15 +1093,31 @@ int SWRenderer_runSpriteTests(void) {
             int tx = ((flip & 1 ? extent - 1 - ox : ox) * 8) / extent;
             int ty = ((flip & 2 ? extent - 1 - oy : oy) * 8) / extent;
             uintpixel_t pixel = swrConvertPixelTexture(rgba[storage][ty * 8 + tx]);
-            if (opaque(pixel)) alphaBlend(&expected[py * 20 + px], tint(color, pixel), alpha, 256 - alpha);
+            if (opaque(pixel)) {
+                uintpixel_t shaded = style == 3 ? swrConvertPixel(0x204080) : tint(color, pixel);
+                alphaBlend(&expected[py * 20 + px], shaded, alpha, 256 - alpha);
+            }
         }
         require(memcmp(expected, actual, sizeof(actual)) == 0);
         require(memcmp(expected, fallback, sizeof(fallback)) == 0);
     }
+    // Rotated silhouettes keep exactly the same coverage as the original sprite.
+    repeat(5, storage) {
+        repeat(320, i) expected[i] = actual[i] = 0xFF123456;
+        swr.fb = expected; swr.fogEnabled = false;
+        swrDrawSpriteRotatedInternal((Renderer*)&swr, 4, 4, 8, 8, textures[storage],
+            0, 0, 8, 8, 0xFFFFFFFF, 256, 35, 4, 4);
+        repeat(320, i) if (expected[i] != 0xFF123456) expected[i] = 0xFF804020;
+        swr.fb = actual; swr.fogEnabled = true;
+        swrDrawSpriteRotatedInternal((Renderer*)&swr, 4, 4, 8, 8, textures[storage],
+            0, 0, 8, 8, 0xFFFFFFFF, 256, 35, 4, 4);
+        require(memcmp(expected, actual, sizeof(actual)) == 0);
+    }
+    swr.fogEnabled = false;
     // Source rectangles outside an atlas may only sample pixels inside it.
     swr.fb = actual;
     swrDrawSpriteInternal((Renderer*)&swr, 0, 0, 16, 16, textures[4], -2, -2, 12, 12, 0xFFFFFFFF, 256);
     repeat(5, storage) swrFreeTexture(textures[storage]);
-    logInfo("Sprite selftests passed: 720 independent pixel comparisons, RGBA and 1/2/4/8-bit palettes, scaling, clipped flips, tint and alpha\n");
+    logInfo("Sprite selftests passed: 960 independent pixel comparisons, RGBA and 1/2/4/8-bit palettes, scaling, clipped flips, tint, alpha and solid-colour silhouettes\n");
     return 0;
 }

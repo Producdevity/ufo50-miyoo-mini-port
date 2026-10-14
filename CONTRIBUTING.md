@@ -68,6 +68,18 @@ cmake --build artifacts/asan -j4
 ASAN_OPTIONS=detect_leaks=0 artifacts/asan/butterscotch --compat-selftest
 ```
 
+## Star Waspir shadows
+
+`tests/star-waspir-shadow-inputs.json` starts a fresh single-player run and
+waits at the beginning of wave one. The ship's offset shadow must be a solid
+colour rather than a second full-colour ship. The synthetic renderer tests
+also check silhouette coverage with transparent pixels, palettes, scaling,
+clipped flips and rotation.
+
+```sh
+python3 scripts/probe.py artifacts/host/butterscotch .local/gamefiles/data.win artifacts/evidence/waspir-shadow --frames 3500 --timeout 30 --headless --offline-audio --render-fps 30 --inputs tests/star-waspir-shadow-inputs.json
+```
+
 ## Party House purchase audio
 
 This replay buys two Old Friends and waits in the shop long enough for the
