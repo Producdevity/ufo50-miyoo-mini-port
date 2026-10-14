@@ -769,46 +769,46 @@ void swrDrawRectangleColor(Renderer* renderer, float x1, float y1, float x2, flo
     swrDrawVLine(renderer, x2, y1, (y2 - y1) + 1, color2, color4, alpha);
 }
 
-void swrFillRectangle(Renderer* renderer, float x1, float y1, float x2, float y2, uintpixel_t pxcolor, float alpha)
+// Clip rounded fill bounds before converting large coordinates to integers.
+// Seaside Drive's boss wipe can expand to millions of off-screen rows.
+static bool swrFillBounds(SWRenderer* swr, float x1, float y1, float x2, float y2,
+                          int* left, int* top, int* right, int* bottom)
 {
-    SWRenderer* swr = (SWRenderer*) renderer;
     swrTransformPosIfNeeded(swr, &x1, &y1);
     swrTransformPosIfNeeded(swr, &x2, &y2);
+    if (isnan(x1) || isnan(y1) || isnan(x2) || isnan(y2)) return false;
+    float xa = floorf(x1), xb = ceilf(x2), ya = floorf(y1), yb = ceilf(y2);
+    float l = fminf(xa, xb), r = fmaxf(xa, xb);
+    float t = fminf(ya, yb), b = fmaxf(ya, yb);
+    if (r <= l || b <= t) return false;
+    l = fmaxf(l, swrMax(0, swr->portX));
+    r = fminf(r, swrMin(swr->width, swr->maxX));
+    t = fmaxf(t, swrMax(0, swr->portY));
+    b = fminf(b, swrMin(swr->height, swr->maxY) - 1);
+    // Horizontal fills exclude the right edge and include the bottom row.
+    if (r <= l || b < t) return false;
+    *left = (int)l; *right = (int)r; *top = (int)t; *bottom = (int)b;
+    return true;
+}
 
+void swrFillRectangle(Renderer* renderer, float x1, float y1, float x2, float y2, uintpixel_t pxcolor, float alpha)
+{
+    int left, top, right, bottom;
+    if (!swrFillBounds((SWRenderer*)renderer, x1, y1, x2, y2, &left, &top, &right, &bottom)) return;
     int alphaInt = swrIntAlpha(alpha);
-    int x1i = swrFloor(x1), x2i = swrCeiling(x2), y1i = swrFloor(y1), y2i = swrCeiling(y2);
-    int xd = x2i - x1i;
-    int yd = y2i - y1i;
-    if (xd < 0) { x1i = x2i; xd = -xd; }
-    if (yd < 0) { y1i = y2i; yd = -yd; }
-    if (xd <= 0 || yd <= 0) return;
-    
-    for (int y = 0; y <= yd; y++) {
-        swrDrawHLineInt(renderer, x1i, y1i + y, xd, pxcolor, pxcolor, alphaInt);
-    }
+    for (int y = top; y <= bottom; y++)
+        swrDrawHLineInt(renderer, left, y, right - left, pxcolor, pxcolor, alphaInt);
 }
 
 void swrFillRectangleColor(Renderer* renderer, float x1, float y1, float x2, float y2, uintpixel_t pxcolor1, uintpixel_t pxcolor2, uintpixel_t pxcolor3, uintpixel_t pxcolor4, float alpha)
 {
-    SWRenderer* swr = (SWRenderer*) renderer;
-    swrTransformPosIfNeeded(swr, &x1, &y1);
-    swrTransformPosIfNeeded(swr, &x2, &y2);
-
+    int left, top, right, bottom;
+    if (!swrFillBounds((SWRenderer*)renderer, x1, y1, x2, y2, &left, &top, &right, &bottom)) return;
     int alphaInt = swrIntAlpha(alpha);
-    int x1i = swrFloor(x1), x2i = swrCeiling(x2), y1i = swrFloor(y1), y2i = swrCeiling(y2);
-    int xd = x2i - x1i;
-    int yd = y2i - y1i;
-    if (xd < 0) { x1i = x2i; xd = -xd; }
-    if (yd < 0) { y1i = y2i; yd = -yd; }
-    if (xd <= 0 || yd <= 0) return;
-    
-    // TODO: blending vertically
-    (void) pxcolor3;
-    (void) pxcolor4;
-    
-    for (int y = 0; y <= yd; y++) {
-        swrDrawHLineInt(renderer, x1i, y1i + y, xd, pxcolor1, pxcolor2, alphaInt);
-    }
+    // Vertical colour interpolation is unchanged.
+    (void)pxcolor3; (void)pxcolor4;
+    for (int y = top; y <= bottom; y++)
+        swrDrawHLineInt(renderer, left, y, right - left, pxcolor1, pxcolor2, alphaInt);
 }
 
 void swrDrawSprite(
@@ -1114,10 +1114,38 @@ int SWRenderer_runSpriteTests(void) {
         require(memcmp(expected, actual, sizeof(actual)) == 0);
     }
     swr.fogEnabled = false;
+    // Seaside Drive's expanding boss wipe extends millions of rows off-screen.
+    // Large coordinates must still draw the visible part, without integer overflow.
+    swr.scaleX = swr.scaleY = 1;
+    swr.fb = actual;
+    repeat(320, i) actual[i] = 0xFF123456;
+    swrFillRectangle((Renderer*)&swr, -1e30f, -1e30f, 1e30f, 1e30f, 0xFFFFFFFF, 1);
+    repeat(320, i) require(actual[i] == 0xFFFFFFFF);
+    swrFillRectangleColor((Renderer*)&swr, 0, -1e30f, 20, 1e30f,
+        0xFF204080, 0xFF204080, 0xFF204080, 0xFF204080, 1);
+    repeat(320, i) require(actual[i] == 0xFF204080);
+    // Compare ordinary fills against an independent per-pixel coverage oracle.
+    swr.portX = 2; swr.portY = 3; swr.maxX = 17; swr.maxY = 13;
+    repeat(7, ix) repeat(7, iy) repeat(2, reverse) {
+        float x1 = ix * 4 - 4.25f, y1 = iy * 3 - 3.25f;
+        float x2 = x1 + 6.5f, y2 = y1 + 5.5f;
+        if (reverse) { float swap=x1; x1=x2; x2=swap; swap=y1; y1=y2; y2=swap; }
+        repeat(320, i) expected[i] = actual[i] = 0xFF123456;
+        swrFillRectangle((Renderer*)&swr, x1, y1, x2, y2, 0xFFFFFFFF, 0.5f);
+        int xa=(int)floorf(x1+2), xb=(int)ceilf(x2+2), ya=(int)floorf(y1+3), yb=(int)ceilf(y2+3);
+        repeat(16, py) repeat(20, px) {
+            bool inside = px >= 2 && px < 17 && py >= 3 && py < 13 &&
+                px >= swrMin(xa,xb) && px < swrMax(xa,xb) &&
+                py >= swrMin(ya,yb) && py <= swrMax(ya,yb);
+            if (inside) expected[py * 20 + px] = 0xFF8899AA;
+        }
+        repeat(320, pixel) requireMessageFormatted(__FILE__, __LINE__, expected[pixel] == actual[pixel], "Fill ix=%d iy=%d reverse=%d pixel=%u actual=%08x expected=%08x", ix, iy, reverse, pixel, actual[pixel], expected[pixel]);
+    }
+    swr.portX = swr.portY = 0; swr.maxX=20; swr.maxY=16;
     // Source rectangles outside an atlas may only sample pixels inside it.
     swr.fb = actual;
     swrDrawSpriteInternal((Renderer*)&swr, 0, 0, 16, 16, textures[4], -2, -2, 12, 12, 0xFFFFFFFF, 256);
     repeat(5, storage) swrFreeTexture(textures[storage]);
-    logInfo("Sprite selftests passed: 960 independent pixel comparisons, RGBA and 1/2/4/8-bit palettes, scaling, clipped flips, tint, alpha and solid-colour silhouettes\n");
+    logInfo("Sprite selftests passed: 960 independent pixel comparisons, RGBA and 1/2/4/8-bit palettes, scaling, clipped flips, tint, alpha and solid-colour silhouettes and bounded rectangle fills\n");
     return 0;
 }

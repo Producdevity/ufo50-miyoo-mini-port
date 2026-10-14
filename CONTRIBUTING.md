@@ -87,6 +87,17 @@ Its normal, garden and infinity music layers start together, but only the
 selected layer should be audible. The audio selftest checks that a layer
 started at zero gain is silent from its first buffer and can later fade in.
 
+## Seaside Drive stage-clear wipe
+
+The boss flash expands far beyond the screen. Filled rectangles must clip
+before converting coordinates to integers or walking rows. The renderer
+selftest checks huge fills, viewport clipping, reversed corners and alpha
+against independent pixel coverage. Its checks run with `--compat-selftest`.
+
+Keep captured game states and diagnostic executables private. A replay that
+uses invincibility or injects a captured wipe state is a rendering test;
+record that separately from a normal gameplay run.
+
 ## Star Waspir shadows
 
 `tests/star-waspir-shadow-inputs.json` starts a fresh single-player run and
