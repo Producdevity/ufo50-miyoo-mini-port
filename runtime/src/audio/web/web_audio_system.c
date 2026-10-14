@@ -155,7 +155,7 @@ static void webUpdate(AudioSystem* audio, float deltaTime) {
     }
 }
 
-static int32_t webPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop) {
+static int32_t webPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop, float gain) {
     WebAudioSystem* ma = (WebAudioSystem*) audio;
     if (!ma->engineReady) return -1;
 
@@ -243,7 +243,7 @@ static int32_t webPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prio
         }
     }
 
-    float volume = isStream ? 1.0f : sound->volume;
+    float volume = (isStream ? 1.0f : sound->volume) * gain;
     float pitch = isStream ? 1.0f : sound->pitch;
     ma_sound_set_volume(&slot->maSound, volume);
     if (pitch != 1.0f) {

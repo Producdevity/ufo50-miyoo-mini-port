@@ -336,7 +336,7 @@ static bool parseWavHeader(const uint8_t* data, uint32_t dataSize,
         && *outChannels > 0 && *outSampleRate > 0 && *outBitsPerSample > 0;
 }
 
-static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop) {
+static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop, float gain) {
     AlAudioSystem* ma = (AlAudioSystem*) audio;
 
     // Check if this is a stream index (created by audio_create_stream)
@@ -538,7 +538,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     }
 
     // Apply properties
-    float volume = isStream ? 1.0f : sound->volume;
+    float volume = (isStream ? 1.0f : sound->volume) * gain;
     float pitch = isStream ? 1.0f : sound->pitch;
     alSourcef(slot->alSource, AL_GAIN, volume);
 

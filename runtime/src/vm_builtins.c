@@ -6660,7 +6660,7 @@ static RValue builtin_sound_play(VMContext* ctx, RValue* args, MAYBE_UNUSED int3
         return RValue_makeReal(-1.0);
 
     int32_t soundIndex = RValue_toInt32(args[0]);
-    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, false);
+    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, false, 1.0f);
     return RValue_makeReal((GMLReal) instanceId);
 }
 
@@ -6693,7 +6693,7 @@ static RValue builtin_sound_loop(VMContext* ctx, RValue* args, MAYBE_UNUSED int3
         return RValue_makeReal(-1.0);
 
     int32_t soundIndex = RValue_toInt32(args[0]);
-    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, true);
+    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, true, 1.0f);
     return RValue_makeReal((GMLReal) instanceId);
 }
 
@@ -6710,9 +6710,9 @@ static RValue builtin_sound_volume(VMContext* ctx, RValue* args, MAYBE_UNUSED in
     return RValue_makeUndefined();
 }
 
-static RValue builtin_audio_play_sound(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
+static RValue builtin_audio_play_sound(VMContext* ctx, RValue* args, int32_t argCount) {
     AudioSystem* audio = getAudioSystem(ctx);
-    if (audio == nullptr) return RValue_makeReal(-1.0);
+    if (audio == nullptr || argCount < 3) return RValue_makeReal(-1.0);
 
     // Do not attempt to play "undefined" sounds (matches GameMaker-HTML5 behavior, and fixes random sound effects on room transitions in DELTARUNE Chapter 2)
     if (args[0].type == RVALUE_UNDEFINED)
@@ -6721,7 +6721,9 @@ static RValue builtin_audio_play_sound(VMContext* ctx, RValue* args, MAYBE_UNUSE
     int32_t soundIndex = RValue_toInt32(args[0]);
     int32_t priority = RValue_toInt32(args[1]);
     bool loop = RValue_toBool(args[2]);
-    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, priority, loop);
+    float gain = argCount > 3 && args[3].type != RVALUE_UNDEFINED ?
+        (float)RValue_toReal(args[3]) : 1.0f;
+    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, priority, loop, gain);
     return RValue_makeReal((GMLReal) instanceId);
 }
 
@@ -6735,7 +6737,7 @@ static RValue builtin_action_sound(VMContext* ctx, RValue* args, MAYBE_UNUSED in
 
     int32_t soundIndex = RValue_toInt32(args[0]);
     bool loop = RValue_toBool(args[1]);
-    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, loop);
+    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, loop, 1.0f);
     return RValue_makeReal((GMLReal) instanceId);
 }
 
@@ -6861,7 +6863,7 @@ static RValue builtin_audio_play_music(VMContext* ctx, RValue* args, MAYBE_UNUSE
     int32_t soundIndex = RValue_toInt32(args[0]);
     bool loop = RValue_toBool(args[1]);
     Runner* runner = ctx->runner;
-    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, loop);
+    int32_t instanceId = audio->vtable->playSound(audio, soundIndex, 10, loop, 1.0f);
     runner->lastMusicInstance = instanceId;
     return RValue_makeReal((GMLReal) instanceId);
 }

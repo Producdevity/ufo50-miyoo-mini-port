@@ -675,7 +675,7 @@ static void ps2Update(AudioSystem* audio, float deltaTime) {
     // logInfo("PS2AudioSystem: Finished ticking the audio system\n");
 }
 
-static int32_t ps2PlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop) {
+static int32_t ps2PlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop, float gain) {
     // logInfo("PS2AudioSystem: Attempting to play sound index %d with priority %d, should loop? %d\n", soundIndex, priority, loop);
     Ps2AudioSystem* ps2 = (Ps2AudioSystem*) audio;
     if (!ps2->initialized) return -1;
@@ -712,9 +712,9 @@ static int32_t ps2PlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prio
         stream->priority = priority;
         stream->loop = loop;
         stream->paused = false;
-        stream->currentGain = 1.0f;
-        stream->targetGain = 1.0f;
-        stream->startGain = 1.0f;
+        stream->currentGain = gain;
+        stream->targetGain = gain;
+        stream->startGain = gain;
         stream->sondVolume = 1.0f;
         stream->pitch = 1.0f;
         stream->sondPitch = 1.0f;
@@ -756,7 +756,7 @@ static int32_t ps2PlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prio
 
     // SOND volume and pitch are fixed-point * 256
     // A pitch of 0 means "default" (1.0) in GameMaker
-    float sondVolume = (float) sond->volume / 256.0f;
+    float sondVolume = ((float) sond->volume / 256.0f) * gain;
     float sondPitch = (sond->pitch == 0) ? 1.0f : (float) sond->pitch / 256.0f;
 
     bool isEmbedded = (sond->flags & AUDIO_ENTRY_FLAG_IS_EMBEDDED) != 0;

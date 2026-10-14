@@ -236,7 +236,7 @@ static void maUpdate(AudioSystem* audio, float deltaTime) {
     }
 }
 
-static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop) {
+static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop, float gain) {
     MaAudioSystem* ma = (MaAudioSystem*) audio;
 
     // Check if this is a stream index (created by audio_create_stream)
@@ -345,7 +345,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     }
 
     // Apply properties
-    float volume = isStream ? streamGain : sound->volume;
+    float volume = (isStream ? streamGain : sound->volume) * gain;
     float pitch = isStream ? streamPitch : sound->pitch;
     slot->groupIndex = isStream ? -1 : sound->audioGroup;
     ma_sound_set_volume(&slot->maSound, volume * maGroupGain(ma, slot->groupIndex));

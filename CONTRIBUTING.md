@@ -68,6 +68,13 @@ cmake --build artifacts/asan -j4
 ASAN_OPTIONS=detect_leaks=0 artifacts/asan/butterscotch --compat-selftest
 ```
 
+## Library music layers
+
+`tests/library-music-inputs.json` opens the game library and leaves it idle.
+Its normal, garden and infinity music layers start together, but only the
+selected layer should be audible. The audio selftest checks that a layer
+started at zero gain is silent from its first buffer and can later fade in.
+
 ## Star Waspir shadows
 
 `tests/star-waspir-shadow-inputs.json` starts a fresh single-player run and

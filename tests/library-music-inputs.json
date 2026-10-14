@@ -1,0 +1,66 @@
+{
+  "200": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "208": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "400": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "408": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "600": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "608": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "800": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "808": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "1000": {
+    "keysPressed": [
+      90
+    ],
+    "keysReleased": []
+  },
+  "1008": {
+    "keysPressed": [],
+    "keysReleased": [
+      90
+    ]
+  },
+  "6000": {
+    "keysPressed": [],
+    "keysReleased": []
+  }
+}

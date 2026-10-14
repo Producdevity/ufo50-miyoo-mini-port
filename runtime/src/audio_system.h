@@ -16,7 +16,7 @@ typedef struct {
     void (*init)(AudioSystem* audio, DataWin* dataWin, FileSystem* fileSystem);
     void (*destroy)(AudioSystem* audio);
     void (*update)(AudioSystem* audio, float deltaTime);
-    int32_t (*playSound)(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop);
+    int32_t (*playSound)(AudioSystem* audio, int32_t soundIndex, int32_t priority, bool loop, float gain);
     void (*stopSound)(AudioSystem* audio, int32_t soundOrInstance);
     void (*stopAll)(AudioSystem* audio);
     bool (*isPlaying)(AudioSystem* audio, int32_t soundOrInstance);

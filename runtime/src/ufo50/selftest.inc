@@ -6,7 +6,31 @@
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 #include "ufo50/spatial_selftest.inc"
 #include "ufo50/rectangle_selftest.inc"
+typedef struct { AudioSystem base; float gain; int calls; } Ufo50AudioCallTest;
+static int32_t audioCallTestPlay(AudioSystem* audio, int32_t sound, int32_t priority, bool loop, float gain) {
+    Ufo50AudioCallTest* test = (Ufo50AudioCallTest*)audio;
+    CHECK_TEST(sound == 7 && priority == 100 && loop);
+    test->gain = gain; test->calls++;
+    return 100123;
+}
+static void Ufo50_testAudioInitialGain(void) {
+    AudioSystemVtable vtable = {.playSound = audioCallTestPlay};
+    Ufo50AudioCallTest audio = {.base = {.vtable = &vtable}};
+    Runner runner = {.audioSystem = &audio.base};
+    VMContext ctx = {.runner = &runner};
+    RValue args[] = {RValue_makeReal(7), RValue_makeReal(100), RValue_makeBool(true), RValue_makeReal(0)};
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == 100123 && audio.gain == 0);
+    args[3] = RValue_makeReal(0.4);
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == 100123 && fabsf(audio.gain - 0.4f) < 0.001f);
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 3)) == 100123 && audio.gain == 1);
+    args[3] = RValue_makeUndefined();
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == 100123 && audio.gain == 1);
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 0)) == -1 && audio.calls == 4);
+    args[0] = RValue_makeUndefined();
+    CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == -1 && audio.calls == 4);
+}
 int Ufo50_runCompatibilityTests(void) {
+    Ufo50_testAudioInitialGain();
     CHECK_TEST(Ufo50_runSpatialRangeTests() == 0);
     CHECK_TEST(VM_runGlobalReadTests() == 0);
     CHECK_TEST(VM_runLocalStorageTests() == 0);

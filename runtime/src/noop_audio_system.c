@@ -15,7 +15,7 @@ static void noopDestroy(AudioSystem* audio) {
 
 static void noopUpdate(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED float deltaTime) {}
 
-static int32_t noopPlaySound(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t soundIndex, MAYBE_UNUSED int32_t priority, MAYBE_UNUSED bool loop) {
+static int32_t noopPlaySound(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t soundIndex, MAYBE_UNUSED int32_t priority, MAYBE_UNUSED bool loop, MAYBE_UNUSED float gain) {
     return -1;
 }
 
