@@ -6763,12 +6763,11 @@ static RValue builtin_audio_is_playing(VMContext* ctx, RValue* args, MAYBE_UNUSE
     return RValue_makeBool(playing);
 }
 
-static RValue builtin_audio_is_paused(VMContext* ctx, RValue* args, MAYBE_UNUSED int32_t argCount) {
+static RValue builtin_audio_is_paused(VMContext* ctx, RValue* args, int32_t argCount) {
     AudioSystem* audio = getAudioSystem(ctx);
-    if (audio == nullptr) return RValue_makeBool(false);
-    int32_t soundOrInstance = RValue_toInt32(args[0]);
-    bool playing = audio->vtable->isPlaying(audio, soundOrInstance);
-    return RValue_makeBool(!playing);
+    if (audio == nullptr || argCount < 1 || args[0].type == RVALUE_UNDEFINED ||
+        audio->vtable->isPaused == nullptr) return RValue_makeBool(false);
+    return RValue_makeBool(audio->vtable->isPaused(audio, RValue_toInt32(args[0])));
 }
 
 

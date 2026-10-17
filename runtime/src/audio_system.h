@@ -46,6 +46,8 @@ typedef struct {
     bool (*destroyStream)(AudioSystem* audio, int32_t streamIndex);
     // Optional: map a retained voice handle to its original SOND resource, or -1.
     int32_t (*getSoundAsset)(AudioSystem* audio, int32_t instanceId);
+    // Optional: distinguish a paused live voice from an ended or invalid sound.
+    bool (*isPaused)(AudioSystem* audio, int32_t soundOrInstance);
 } AudioSystemVtable;
 
 // ===[ AudioSystem Base Struct ]===

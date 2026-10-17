@@ -41,7 +41,7 @@ static SoundInstance* findFreeSlot(MaAudioSystem* ma) {
     SoundInstance* best = nullptr;
     repeat(MAX_SOUND_INSTANCES, i) {
         SoundInstance* inst = &ma->instances[i];
-        if (!ma_sound_is_playing(&inst->maSound)) {
+        if (!inst->paused && ma_sound_at_end(&inst->maSound)) {
             if (best == nullptr || best->priority > inst->priority) {
                 best = inst;
             }
@@ -232,7 +232,7 @@ static void maUpdate(AudioSystem* audio, float deltaTime) {
         ma_sound_set_volume(&inst->maSound, inst->currentGain * maGroupGain(ma, inst->groupIndex));
 
         // Clean up ended non-looping sounds (ma_sound_at_end avoids reaping still-loading async sounds)
-        if (ma_sound_at_end(&inst->maSound) && !ma_sound_is_looping(&inst->maSound)) {
+        if (!inst->paused && ma_sound_at_end(&inst->maSound) && !ma_sound_is_looping(&inst->maSound)) {
             ma_sound_uninit(&inst->maSound);
             if (inst->ownsDecoder) {
                 ma_decoder_uninit(&inst->decoder);
@@ -362,6 +362,7 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
 
     // Set up instance tracking
     slot->active = true;
+    slot->paused = false;
     slot->soundIndex = soundIndex;
     slot->instanceId = instanceId;
     slot->currentGain = volume;
@@ -429,12 +430,12 @@ static bool maIsPlaying(AudioSystem* audio, int32_t soundOrInstance) {
 
     if (soundOrInstance >= SOUND_INSTANCE_ID_BASE) {
         SoundInstance* inst = findInstanceById(ma, soundOrInstance);
-        return inst != nullptr && ma_sound_is_playing(&inst->maSound);
+        return inst != nullptr && (inst->paused || ma_sound_is_playing(&inst->maSound));
     } else {
         // Check if any instance of this sound resource is playing
         repeat(MAX_SOUND_INSTANCES, i) {
             SoundInstance* inst = &ma->instances[i];
-            if (inst->active && inst->soundIndex == soundOrInstance && ma_sound_is_playing(&inst->maSound)) {
+            if (inst->active && inst->soundIndex == soundOrInstance && (inst->paused || ma_sound_is_playing(&inst->maSound))) {
                 return true;
             }
         }
@@ -442,62 +443,65 @@ static bool maIsPlaying(AudioSystem* audio, int32_t soundOrInstance) {
     }
 }
 
-static void maPauseSound(AudioSystem* audio, int32_t soundOrInstance) {
-    MaAudioSystem* ma = (MaAudioSystem*) audio;
-
+static bool maIsPaused(AudioSystem* audio, int32_t soundOrInstance) {
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
     if (soundOrInstance >= SOUND_INSTANCE_ID_BASE) {
         SoundInstance* inst = findInstanceById(ma, soundOrInstance);
-        if (inst != nullptr) {
-            ma_sound_stop(&inst->maSound);
-        }
+        return inst != nullptr && inst->paused;
+    }
+    repeat(MAX_SOUND_INSTANCES, i) {
+        SoundInstance* inst = &ma->instances[i];
+        if (inst->active && inst->soundIndex == soundOrInstance && inst->paused) return true;
+    }
+    return false;
+}
+
+static void maPauseVoice(SoundInstance* inst) {
+    if (inst != nullptr && inst->active && !inst->paused && ma_sound_is_playing(&inst->maSound)) {
+        inst->paused = true;
+        ma_sound_stop(&inst->maSound);
+    }
+}
+
+static void maResumeVoice(SoundInstance* inst) {
+    if (inst != nullptr && inst->active && inst->paused) {
+        inst->paused = false;
+        ma_sound_start(&inst->maSound);
+    }
+}
+
+static void maPauseSound(AudioSystem* audio, int32_t soundOrInstance) {
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
+    if (soundOrInstance >= SOUND_INSTANCE_ID_BASE) {
+        maPauseVoice(findInstanceById(ma, soundOrInstance));
     } else {
         repeat(MAX_SOUND_INSTANCES, i) {
             SoundInstance* inst = &ma->instances[i];
-            if (inst->active && inst->soundIndex == soundOrInstance) {
-                ma_sound_stop(&inst->maSound);
-            }
+            if (inst->active && inst->soundIndex == soundOrInstance) maPauseVoice(inst);
         }
     }
 }
 
 static void maResumeSound(AudioSystem* audio, int32_t soundOrInstance) {
-    MaAudioSystem* ma = (MaAudioSystem*) audio;
-
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
     if (soundOrInstance >= SOUND_INSTANCE_ID_BASE) {
-        SoundInstance* inst = findInstanceById(ma, soundOrInstance);
-        if (inst != nullptr) {
-            ma_sound_start(&inst->maSound);
-        }
+        maResumeVoice(findInstanceById(ma, soundOrInstance));
     } else {
         repeat(MAX_SOUND_INSTANCES, i) {
             SoundInstance* inst = &ma->instances[i];
-            if (inst->active && inst->soundIndex == soundOrInstance) {
-                ma_sound_start(&inst->maSound);
-            }
+            if (inst->active && inst->soundIndex == soundOrInstance) maResumeVoice(inst);
         }
     }
 }
 
 static void maPauseAll(AudioSystem* audio) {
-    MaAudioSystem* ma = (MaAudioSystem*) audio;
-
-    repeat(MAX_SOUND_INSTANCES, i) {
-        SoundInstance* inst = &ma->instances[i];
-        if (inst->active && ma_sound_is_playing(&inst->maSound)) {
-            ma_sound_stop(&inst->maSound);
-        }
-    }
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
+    repeat(MAX_SOUND_INSTANCES, i) maPauseVoice(&ma->instances[i]);
 }
 
 static void maResumeAll(AudioSystem* audio) {
-    MaAudioSystem* ma = (MaAudioSystem*) audio;
-
-    repeat(MAX_SOUND_INSTANCES, i) {
-        SoundInstance* inst = &ma->instances[i];
-        if (inst->active) {
-            ma_sound_start(&inst->maSound);
-        }
-    }
+    MaAudioSystem* ma = (MaAudioSystem*)audio;
+    repeat(MAX_SOUND_INSTANCES, i) maResumeVoice(&ma->instances[i]);
 }
 
 static void maSuspend(AudioSystem* audio) {
@@ -937,6 +941,7 @@ static void maSetupVtable(void) {
     maAudioSystemVtable.stopSound = maStopSound;
     maAudioSystemVtable.stopAll = maStopAll;
     maAudioSystemVtable.isPlaying = maIsPlaying;
+    maAudioSystemVtable.isPaused = maIsPaused;
     maAudioSystemVtable.pauseSound = maPauseSound;
     maAudioSystemVtable.resumeSound = maResumeSound;
     maAudioSystemVtable.pauseAll = maPauseAll;

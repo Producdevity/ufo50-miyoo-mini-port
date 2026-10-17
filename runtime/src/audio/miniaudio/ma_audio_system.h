@@ -15,6 +15,7 @@
 
 typedef struct {
     bool active;
+    bool paused;
     int32_t groupIndex;
     int32_t soundIndex; // SOND resource that spawned this
     int32_t instanceId; // unique ID returned to GML

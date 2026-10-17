@@ -68,6 +68,29 @@ cmake --build artifacts/asan -j4
 ASAN_OPTIONS=detect_leaks=0 artifacts/asan/butterscotch --compat-selftest
 ```
 
+## Pause and resume audio
+
+`tests/devilition-pause-inputs.json` opens Devilition, pauses at step 5,000
+and resumes at 5,400. Use seed 1234, fresh saves and 6,000 steps. Recorded
+keyboard inputs use the game's default pause key, D (68); Enter is translated
+to D only by the Mini's physical-button mapping.
+
+The music should be silent while paused and continue from its current position
+after resuming. A paused voice still counts as playing for `audio_exists` and
+`audio_is_playing`; `audio_is_paused` must distinguish it from a finished sound.
+The synthetic mixer tests check PCM silence, cursor retention, asset and voice
+queries, repeated pauses, finished effects and slot pressure.
+
+`tests/devilition-bomb-inputs.json` places two more bombs after the initial
+one. At step 6,000 there are three pieces on the board and twelve left to place;
+the original music voice should still be playing after the selection effects.
+
+`tests/onion-delivery-drift-inputs.json` accelerates, makes a short left drift
+and releases the controls without a collision. Use 5,100 steps. The skid loop
+should fade out when the drift ends, with the driving music still playing.
+Retain a trace or sink recording when checking this; nonzero overall audio alone
+cannot establish whether a looping effect has stopped.
+
 ## Overbold payout audio
 
 `tests/overbold-payout-inputs.json` wins the first fight with seed 1234 and

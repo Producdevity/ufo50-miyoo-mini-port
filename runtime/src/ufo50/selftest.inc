@@ -6,7 +6,7 @@
 #define CHECK_TEST(expr) requireMessage((expr), "Compatibility regression: " #expr)
 #include "ufo50/spatial_selftest.inc"
 #include "ufo50/rectangle_selftest.inc"
-typedef struct { AudioSystem base; float gain; int calls; } Ufo50AudioCallTest;
+typedef struct { AudioSystem base; float gain; int calls; bool playing, paused; } Ufo50AudioCallTest;
 static int32_t audioCallTestPlay(AudioSystem* audio, int32_t sound, int32_t priority, bool loop, float gain) {
     Ufo50AudioCallTest* test = (Ufo50AudioCallTest*)audio;
     CHECK_TEST(sound == 7 && priority == 100 && loop);
@@ -16,8 +16,15 @@ static int32_t audioCallTestPlay(AudioSystem* audio, int32_t sound, int32_t prio
 static int32_t audioCallTestAsset(MAYBE_UNUSED AudioSystem* audio, int32_t voice) {
     return voice == 100123 ? 7 : -1;
 }
+static bool audioCallTestPlaying(AudioSystem* audio, int32_t sound) {
+    return (sound == 7 || sound == 100123) && ((Ufo50AudioCallTest*)audio)->playing;
+}
+static bool audioCallTestPaused(AudioSystem* audio, int32_t sound) {
+    return (sound == 7 || sound == 100123) && ((Ufo50AudioCallTest*)audio)->paused;
+}
 static void Ufo50_testAudioInitialGain(void) {
-    AudioSystemVtable vtable = {.playSound = audioCallTestPlay, .getSoundAsset = audioCallTestAsset};
+    AudioSystemVtable vtable = {.playSound = audioCallTestPlay, .getSoundAsset = audioCallTestAsset,
+        .isPlaying = audioCallTestPlaying, .isPaused = audioCallTestPaused};
     Ufo50AudioCallTest audio = {.base = {.vtable = &vtable}};
     Runner runner = {.audioSystem = &audio.base};
     VMContext ctx = {.runner = &runner};
@@ -40,7 +47,26 @@ static void Ufo50_testAudioInitialGain(void) {
     voice = RValue_makeReal(100124);
     name = builtin_audio_get_name(&ctx, &voice, 1);
     CHECK_TEST(name.type == RVALUE_STRING && strcmp(name.string, "<undefined>") == 0);
-    RValue_free(&name); arrfree(audio.base.audioGroups);
+    RValue_free(&name);
+    audio.playing = true; audio.paused = true;
+    voice = RValue_makeReal(100123);
+    CHECK_TEST(RValue_toBool(builtin_audio_exists(&ctx, &voice, 1)));
+    CHECK_TEST(RValue_toBool(builtin_audio_is_playing(&ctx, &voice, 1)));
+    CHECK_TEST(RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    voice = RValue_makeReal(7);
+    CHECK_TEST(RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    audio.paused = false;
+    CHECK_TEST(!RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    voice = RValue_makeReal(100124);
+    CHECK_TEST(!RValue_toBool(builtin_audio_exists(&ctx, &voice, 1)));
+    CHECK_TEST(!RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    voice = RValue_makeUndefined();
+    CHECK_TEST(!RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    CHECK_TEST(!RValue_toBool(builtin_audio_is_paused(&ctx, nullptr, 0)));
+    vtable.isPaused = nullptr;
+    voice = RValue_makeReal(100123);
+    CHECK_TEST(!RValue_toBool(builtin_audio_is_paused(&ctx, &voice, 1)));
+    arrfree(audio.base.audioGroups);
     args[0] = RValue_makeUndefined();
     CHECK_TEST(RValue_toInt32(builtin_audio_play_sound(&ctx, args, 4)) == -1 && audio.calls == 4);
 }
