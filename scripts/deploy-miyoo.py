@@ -17,6 +17,7 @@ GAME = 'Roms/PORTS/Games/UFO50'
 SHORTCUT = 'Roms/PORTS/Shortcuts/Action/UFO50'
 SAVE = 'Saves/CurrentProfile/saves/UFO50'
 CACHE = 'Roms/PORTS/Shortcuts/Shortcuts_cache6.db'
+ARTWORK = 'Roms/PORTS/Imgs/UFO50.png'
 METADATA = {'.DS_Store', 'Thumbs.db'}
 
 
@@ -48,7 +49,7 @@ def unpack_package(archive, directory):
             raise ValueError('Duplicate package member')
         manifest_path = GAME + '/manifest.json' if versioned else 'manifest.json'
         documents = ['README.txt', 'THIRD_PARTY.txt'] if versioned else ['README.md', 'README.txt']
-        allowed = {manifest_path, SHORTCUT + '.notfound'} | {
+        allowed = {manifest_path, SHORTCUT + '.notfound', ARTWORK} | {
             GAME + '/' + name for name in ['bin/butterscotch', 'script.sh',
                 'LICENSE', 'NOTICE', *documents]}
         if not versioned:
@@ -89,7 +90,8 @@ def unpack_package(archive, directory):
         source_archive = directory / 'source.tar.gz'
     if sha256(source_archive) != record['source_archive_sha256']:
         raise ValueError('Source archive verification failed')
-    source_files = [('port/script.sh', GAME + '/script.sh'),
+    source_files = [('port/artwork/UFO50.png', ARTWORK),
+                    ('port/script.sh', GAME + '/script.sh'),
                     ('port/UFO50.notfound', SHORTCUT + '.notfound'),
                     ('LICENSE', GAME + '/LICENSE'), ('NOTICE', GAME + '/NOTICE'),
                     ('port/README.txt', GAME + '/README.txt')]
@@ -122,6 +124,9 @@ def deploy(sd, package, gamefiles, backup_root):
         raise ValueError('Onion Ports Collection launcher is missing')
     target = sd / GAME
     saves = sd / SAVE
+    artwork = sd / ARTWORK
+    if artwork.is_symlink() or (artwork.exists() and not artwork.is_file()):
+        raise ValueError('Artwork destination must be a regular file')
     owned = target / 'gamefiles'
     if owned.exists() and any(owned.iterdir()):
         if gamefiles is not None:
@@ -136,6 +141,7 @@ def deploy(sd, package, gamefiles, backup_root):
     backup.mkdir(parents=True, exist_ok=False)
     staged = target.parent / ('.UFO50.new.' + stamp)
     previous = target.parent / ('.UFO50.old.' + stamp)
+    next_artwork = artwork.with_name('.UFO50.png.next.' + stamp)
     shortcuts = [sd / (SHORTCUT + extension) for extension in ('.port', '.notfound')]
     activated = False
     promoted_old = False
@@ -144,7 +150,7 @@ def deploy(sd, package, gamefiles, backup_root):
             unpacked = Path(temporary)
             record = unpack_package(package, unpacked)
             with tarfile.open(backup / 'previous.tar.gz', 'w:gz') as archive:
-                for relative in [GAME, SAVE, SHORTCUT + '.port', SHORTCUT + '.notfound', CACHE]:
+                for relative in [GAME, SAVE, SHORTCUT + '.port', SHORTCUT + '.notfound', ARTWORK, CACHE]:
                     path = sd / relative
                     if path.exists():
                         archive.add(path, arcname=relative)
@@ -172,6 +178,9 @@ def deploy(sd, package, gamefiles, backup_root):
             next_shortcut = shortcut.with_suffix('.next')
             shutil.copy2(unpacked / (SHORTCUT + '.notfound'), next_shortcut)
             next_shortcut.replace(shortcut)
+            artwork.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(unpacked / ARTWORK, next_artwork)
+            next_artwork.replace(artwork)
             for old in shortcuts:
                 if old.suffix == '.notfound' and old.exists():
                     old.unlink()
@@ -186,13 +195,15 @@ def deploy(sd, package, gamefiles, backup_root):
                 raise ValueError('Installed assets or preserved saves differ')
             if sha256(shortcut) != sha256(unpacked / (SHORTCUT + '.notfound')):
                 raise ValueError('Installed shortcut differs from the package')
+            if sha256(artwork) != sha256(unpacked / ARTWORK):
+                raise ValueError('Installed artwork differs from the package')
             # Onion rebuilds this generated list so the new entry appears immediately.
             cache = sd / CACHE
             if cache.exists():
                 cache.unlink()
             (backup / 'deployment.json').write_text(json.dumps(dict(
                 source=record['source'], runtime_sha256=record['runtime_sha256'],
-                gamefiles=len(asset_before), preserved_save_files=len(save_before),
+                artwork_sha256=sha256(artwork), gamefiles=len(asset_before), preserved_save_files=len(save_before),
                 sd_root=str(sd), package=str(package), verified=True), indent=2) + '\n')
         if promoted_old:
             shutil.rmtree(previous)
@@ -203,12 +214,12 @@ def deploy(sd, package, gamefiles, backup_root):
         if promoted_old and previous.exists():
             previous.rename(target)
         if activated:
-            for shortcut in shortcuts:
-                if shortcut.exists():
-                    shortcut.unlink()
+            for installed in [*shortcuts, artwork]:
+                if installed.exists():
+                    installed.unlink()
             with tarfile.open(backup / 'previous.tar.gz') as archive:
                 for member in archive.getmembers():
-                    if member.name in [SHORTCUT + '.port', SHORTCUT + '.notfound', CACHE]:
+                    if member.name in [SHORTCUT + '.port', SHORTCUT + '.notfound', ARTWORK, CACHE]:
                         if not member.isfile():
                             raise ValueError('Unexpected backup member type')
                         destination = sd / member.name
@@ -217,6 +228,8 @@ def deploy(sd, package, gamefiles, backup_root):
                             shutil.copyfileobj(source, output)
         raise
     finally:
+        if next_artwork.exists():
+            next_artwork.unlink()
         if staged.exists():
             shutil.rmtree(staged)
 

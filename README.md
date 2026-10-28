@@ -6,7 +6,7 @@ yourself.
 
 ![Barbuta gameplay](docs/images/gameplay.gif)
 
-[About the capture](docs/media.md)
+[About the capture](docs/media.md#gameplay-capture)
 
 ## Huge thanks to Butterscotch
 
@@ -46,6 +46,10 @@ can be named `textures` or `Textures`.
 `data.win` must be directly inside `gamefiles`. A ZIP or an extra UFO50 folder
 inside it will not work. Game files are not included in the download.
 
+The official cover is included at `Roms/PORTS/Imgs/UFO50.png`. For an existing
+install, you can copy just that PNG to the same path on your card.
+[Artwork credits](docs/media.md#launcher-cover).
+
 ## Controls and saves
 
 | Button | Action |
@@ -73,8 +77,9 @@ Windows game folder, including `textures`, `ext`, and every audio group.
 
 If your computer says the SD card's `Games` folder is corrupt, stop the copy,
 back up the card, and check it for filesystem errors. The release doesn't
-replace that folder. You can copy just `Games/UFO50` and
-`Shortcuts/Action/UFO50.notfound` into the matching folders under `Roms/PORTS`.
+replace that folder. You can copy `Games/UFO50`,
+`Shortcuts/Action/UFO50.notfound` and `Imgs/UFO50.png` into their matching
+folders under `Roms/PORTS`.
 
 [Open an issue](https://github.com/Producdevity/ufo50-miyoo-mini-port/issues)
 with your Mini model, Onion version and the latest log from

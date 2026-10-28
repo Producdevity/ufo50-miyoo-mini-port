@@ -27,7 +27,7 @@ class ReleasePackage(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.repo = self.root / 'source'
         self.repo.mkdir()
-        for name in ['port/script.sh', 'port/UFO50.notfound', 'port/README.txt',
+        for name in ['port/script.sh', 'port/UFO50.notfound', 'port/README.txt', 'port/artwork/UFO50.png',
                      'licenses/THIRD_PARTY.txt', 'LICENSE', 'NOTICE', 'README.md']:
             target = self.repo / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -67,7 +67,9 @@ class ReleasePackage(unittest.TestCase):
             names = archive.namelist()
             self.assertTrue(all(name.startswith('Roms/') for name in names))
             self.assertNotIn('source.tar.gz', names)
-            self.assertFalse(any(name.endswith(('.gif', '.png', '.win', '.yytex')) for name in names))
+            self.assertFalse(any(name.endswith(('.gif', '.win', '.yytex')) for name in names))
+            self.assertEqual([name for name in names if name.endswith('.png')], [deploy.ARTWORK])
+            self.assertEqual(archive.read(deploy.ARTWORK), (self.repo / 'port/artwork/UFO50.png').read_bytes())
             self.assertIn(deploy.GAME + '/README.txt', names)
             self.assertIn(deploy.GAME + '/THIRD_PARTY.txt', names)
             self.assertEqual(archive.getinfo(deploy.GAME + '/bin/butterscotch').external_attr >> 16 & 0o777, 0o755)
@@ -81,6 +83,15 @@ class ReleasePackage(unittest.TestCase):
         with zipfile.ZipFile(self.archive, 'a') as archive:
             archive.writestr(deploy.GAME + '/gamefiles/data.win', b'private fixture')
         with self.assertRaisesRegex(ValueError, 'package member'):
+            self.unpack()
+
+    def test_altered_artwork_is_rejected(self):
+        with zipfile.ZipFile(self.archive) as original:
+            entries = [(info, original.read(info)) for info in original.infolist()]
+        with zipfile.ZipFile(self.archive, 'w') as altered:
+            for info, data in entries:
+                altered.writestr(info, b'altered cover' if info.filename == deploy.ARTWORK else data)
+        with self.assertRaisesRegex(ValueError, 'Packaged source file differs'):
             self.unpack()
 
     def test_altered_separate_source_is_rejected(self):

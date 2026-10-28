@@ -31,6 +31,10 @@ class Deployment(unittest.TestCase):
         (self.saves / 'save1.ufo').write_bytes(b'keep this save')
         (self.sd / (deploy.SHORTCUT + '.notfound')).write_bytes(b'old shortcut')
         (self.sd / deploy.CACHE).write_bytes(b'old list cache')
+        (self.sd / deploy.ARTWORK).parent.mkdir(parents=True)
+        (self.sd / deploy.ARTWORK).write_bytes(b'old cover')
+        self.other_artwork = (self.sd / deploy.ARTWORK).with_name('Balatro.png')
+        self.other_artwork.write_bytes(b'keep other artwork')
         self.save_before = deploy.manifest(self.saves)
         self.asset_before = deploy.manifest(self.target / 'gamefiles')
 
@@ -45,6 +49,9 @@ class Deployment(unittest.TestCase):
         shortcut = directory / (deploy.SHORTCUT + '.notfound')
         shortcut.parent.mkdir(parents=True)
         shortcut.write_bytes(b'new shortcut')
+        artwork = directory / deploy.ARTWORK
+        artwork.parent.mkdir(parents=True)
+        artwork.write_bytes(b'new cover')
         return dict(source={'commit': 'fixture'}, runtime_sha256=deploy.sha256(game / 'bin/butterscotch'))
 
     def run_deploy(self):
@@ -56,10 +63,13 @@ class Deployment(unittest.TestCase):
         self.assertEqual(deploy.manifest(self.saves), self.save_before)
         self.assertEqual(deploy.manifest(self.target / 'gamefiles'), self.asset_before)
         self.assertEqual((self.target / 'bin/butterscotch').read_bytes(), b'new runtime')
+        self.assertEqual((self.sd / deploy.ARTWORK).read_bytes(), b'new cover')
+        self.assertEqual(self.other_artwork.read_bytes(), b'keep other artwork')
         self.assertTrue((self.sd / (deploy.SHORTCUT + '.port')).is_file())
         self.assertFalse((self.sd / deploy.CACHE).exists())
         with tarfile.open(backup / 'previous.tar.gz') as archive:
             self.assertEqual(archive.extractfile(deploy.CACHE).read(), b'old list cache')
+            self.assertEqual(archive.extractfile(deploy.ARTWORK).read(), b'old cover')
             self.assertEqual(archive.extractfile(deploy.SAVE + '/save1.ufo').read(), b'keep this save')
             self.assertEqual(archive.extractfile(deploy.GAME + '/old-runtime').read(), b'old')
 
@@ -79,9 +89,27 @@ class Deployment(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'injected'):
                 self.run_deploy()
         self.assertEqual((self.target / 'old-runtime').read_bytes(), b'old')
+        self.assertEqual((self.sd / deploy.ARTWORK).read_bytes(), b'old cover')
+        self.assertEqual(self.other_artwork.read_bytes(), b'keep other artwork')
         self.assertEqual((self.sd / (deploy.SHORTCUT + '.notfound')).read_bytes(), b'old shortcut')
         self.assertFalse((self.sd / (deploy.SHORTCUT + '.port')).exists())
         self.assertEqual((self.sd / deploy.CACHE).read_bytes(), b'old list cache')
+        self.assertEqual(deploy.manifest(self.saves), self.save_before)
+        self.assertEqual(deploy.manifest(self.target / 'gamefiles'), self.asset_before)
+
+    def test_failed_first_artwork_install_removes_new_cover(self):
+        (self.sd / deploy.ARTWORK).unlink()
+        original_sha256 = deploy.sha256
+
+        def failing_sha256(path):
+            return 'wrong artwork' if path == self.sd / deploy.ARTWORK else original_sha256(path)
+
+        with patch.object(deploy, 'sha256', failing_sha256):
+            with self.assertRaisesRegex(ValueError, 'Installed artwork differs'):
+                self.run_deploy()
+        self.assertFalse((self.sd / deploy.ARTWORK).exists())
+        self.assertEqual(self.other_artwork.read_bytes(), b'keep other artwork')
+        self.assertEqual((self.target / 'old-runtime').read_bytes(), b'old')
         self.assertEqual(deploy.manifest(self.saves), self.save_before)
         self.assertEqual(deploy.manifest(self.target / 'gamefiles'), self.asset_before)
 

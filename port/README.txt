@@ -13,6 +13,9 @@ UFO 50 for Miyoo Mini and Mini Plus (Onion)
    or Textures is accepted. You do not need the Windows executable.
 4. Run ~Import ports, then open Action > UFO50.
 
+Official cover artwork is included in Roms/PORTS/Imgs/UFO50.png.
+To add just the cover to an existing install, copy that PNG to the same path.
+
 D-pad: move/select. A or Y: first action/confirm. B or X: second action.
 Start: pause menu. Select: back/menu.
 

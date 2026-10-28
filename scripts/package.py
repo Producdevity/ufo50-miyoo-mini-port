@@ -55,6 +55,9 @@ def package(target, source, output, version=None):
             shortcut = stage / 'Roms/PORTS/Shortcuts/Action/UFO50.notfound'
             shortcut.parent.mkdir(parents=True)
             shutil.copy2(ROOT / 'port/UFO50.notfound', shortcut)
+            artwork = stage / 'Roms/PORTS/Imgs/UFO50.png'
+            artwork.parent.mkdir(parents=True)
+            shutil.copy2(ROOT / 'port/artwork/UFO50.png', artwork)
             name = f'ufo50-miyoo-mini-v{version}.zip' if version else 'ufo50-miyoo-mini-development.zip'
         else:
             game = stage / 'mmc/.ufo50-dev'
