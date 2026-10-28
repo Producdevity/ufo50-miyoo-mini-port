@@ -100,6 +100,7 @@ def package(target, source, output, version=None):
         if version:
             source_name = f'ufo50-miyoo-mini-v{version}-source.tar.gz'
             shutil.copy2(source_archive, output / source_name)
+            shutil.copy2(ROOT / 'port/artwork/UFO50.png', output / 'UFO50.png')
             manifest.update(version=version, source_archive=source_name,
                 source_url=f'https://github.com/Producdevity/ufo50-miyoo-mini-port/releases/download/v{version}/{source_name}')
             (game / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -147,7 +148,8 @@ def main():
     try:
         archives = [package(target, source, output, version) for target in targets]
         if version:
-            archives.append(output / f'ufo50-miyoo-mini-v{version}-source.tar.gz')
+            archives.extend([output / f'ufo50-miyoo-mini-v{version}-source.tar.gz',
+                             output / 'UFO50.png'])
     except (ValueError, FileNotFoundError) as error:
         parser.error(str(error))
     (output / 'SHA256SUMS').write_text(''.join(f'{sha256(archive)}  {archive.name}\n'

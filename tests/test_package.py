@@ -73,6 +73,8 @@ class ReleasePackage(unittest.TestCase):
             self.assertIn(deploy.GAME + '/README.txt', names)
             self.assertIn(deploy.GAME + '/THIRD_PARTY.txt', names)
             self.assertEqual(archive.getinfo(deploy.GAME + '/bin/butterscotch').external_attr >> 16 & 0o777, 0o755)
+        self.assertEqual((self.output / 'UFO50.png').read_bytes(),
+                         (self.repo / 'port/artwork/UFO50.png').read_bytes())
         record = self.unpack()
         self.assertEqual(record['version'], '0.1.0')
         with tarfile.open(self.output / record['source_archive']) as source:
